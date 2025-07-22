@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/api_service.dart';
 
 class TeacherReportsScreen extends StatefulWidget {
   const TeacherReportsScreen({super.key});
@@ -11,72 +13,184 @@ class TeacherReportsScreen extends StatefulWidget {
 }
 
 class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
-  String selectedPeriod = 'thisMonth';
-  String selectedSchool = 'all';
-  
-  // Sample teacher report data
-  List<Map<String, dynamic>> teacherReports = [
-    {
-      'id': 1,
-      'teacherName': 'श्रीमती सुनीता शर्मा',
-      'schoolName': 'राजकीय प्राथमिक शाला, नारायणपुर',
-      'totalStudents': 45,
-      'photosUploaded': 89,
-      'studentsRegistered': 42,
-      'lastLogin': '2 घंटे पहले',
-      'activeDays': 22,
-      'totalDays': 25,
-      'efficiency': 92,
-      'status': 'excellent',
-    },
-    {
-      'id': 2,
-      'teacherName': 'श्री राजेश कुमार',
-      'schoolName': 'राजकीय मध्य शाला, धमतरी',
-      'totalStudents': 67,
-      'photosUploaded': 134,
-      'studentsRegistered': 65,
-      'lastLogin': '5 घंटे पहले',
-      'activeDays': 20,
-      'totalDays': 25,
-      'efficiency': 78,
-      'status': 'good',
-    },
-    {
-      'id': 3,
-      'teacherName': 'श्रीमती प्रिया वर्मा',
-      'schoolName': 'राजकीय उच्च शाला, बिलासपुर',
-      'totalStudents': 89,
-      'photosUploaded': 156,
-      'studentsRegistered': 87,
-      'lastLogin': '1 दिन पहले',
-      'activeDays': 24,
-      'totalDays': 25,
-      'efficiency': 95,
-      'status': 'excellent',
-    },
-    {
-      'id': 4,
-      'teacherName': 'श्री अमित पटेल',
-      'schoolName': 'राजकीय प्राथमिक शाला, जगदलपुर',
-      'totalStudents': 34,
-      'photosUploaded': 23,
-      'studentsRegistered': 28,
-      'lastLogin': '3 दिन पहले',
-      'activeDays': 15,
-      'totalDays': 25,
-      'efficiency': 58,
-      'status': 'needs_improvement',
-    },
-  ];
+  bool _isLoading = true;
+  List<Map<String, dynamic>> teacherReports = [];
+  List<Map<String, dynamic>> filteredTeacherReports = [];
+  String? _errorMessage;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
-  List<Map<String, dynamic>> get filteredReports {
-    return teacherReports.where((report) {
-      final matchesSchool = selectedSchool == 'all' || 
-          (report['schoolName'] as String).contains(selectedSchool);
-      return matchesSchool;
+  @override
+  void initState() {
+    super.initState();
+    _loadTeacherData();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase();
+      _applyFilters();
+    });
+  }
+
+  Future<void> _loadTeacherData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final appState = Provider.of<AppStateProvider>(context, listen: false);
+      final udiseCode = appState.udiseCode ?? '1234'; // Default UDISE code
+      
+      final response = await ApiService.getTeachersByUdise(udiseCode);
+      
+      if (response['success'] == true) {
+        final data = response['data'];
+        if (data != null && data['data'] != null) {
+          final teachersData = data['data'] as List<dynamic>?;
+          if (teachersData != null) {
+            final teachers = teachersData.map((e) => e as Map<String, dynamic>).toList();
+            
+            // Fetch dashboard data for each teacher
+            final processedTeachers = <Map<String, dynamic>>[];
+            for (final teacher in teachers) {
+              final username = teacher['username'] as String? ?? '';
+              if (username.isNotEmpty) {
+                // Call teacher dashboard API for each teacher with UDISE code
+                final dashboardResponse = await ApiService.getTeacherDashboardByUsername(username, udiseCode: udiseCode);
+                if (dashboardResponse['success'] == true) {
+                  final dashboardData = dashboardResponse['data'];
+                  // Merge dashboard data with teacher data
+                  final mergedTeacher = Map<String, dynamic>.from(teacher);
+                  mergedTeacher['dashboard_data'] = dashboardData;
+                  processedTeachers.add(mergedTeacher);
+                } else {
+                  // Add teacher without dashboard data
+                  processedTeachers.add(teacher);
+                }
+              } else {
+                // Add teacher without dashboard data
+                processedTeachers.add(teacher);
+              }
+            }
+            
+            setState(() {
+              teacherReports = _processTeacherData(processedTeachers);
+              _applyFilters();
+              _isLoading = false;
+            });
+          } else {
+            setState(() {
+              teacherReports = [];
+              filteredTeacherReports = [];
+              _isLoading = false;
+            });
+          }
+        } else {
+          setState(() {
+            teacherReports = [];
+            filteredTeacherReports = [];
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage = (response['data']?['message'] as String?) ?? 'शिक्षक डेटा लोड करने में त्रुटि हुई';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'नेटवर्क कनेक्शन की जांच करें';
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> _processTeacherData(List<Map<String, dynamic>> teachers) {
+    return teachers.map((teacher) {
+      // Get dashboard data if available
+      final dashboardData = teacher['dashboard_data'] as Map<String, dynamic>?;
+      
+      // Debug: Print the dashboard data to see what fields are available
+      print('Teacher: ${teacher['name']}');
+      print('Dashboard Data: $dashboardData');
+      print('Teacher Data Keys: ${teacher.keys.toList()}');
+      
+      // Extract data from dashboard if available, trying multiple possible field names
+      final totalStudents = (dashboardData?['COUNT'] as num?)?.toInt() ?? 
+                           (dashboardData?['total_students'] as num?)?.toInt() ?? 
+                           (dashboardData?['student_count'] as num?)?.toInt() ?? 
+                           (dashboardData?['total_student'] as num?)?.toInt() ?? 
+                           (teacher['total_students'] as num?)?.toInt() ?? 
+                           (teacher['student_count'] as num?)?.toInt() ?? 
+                           0; // Default to 0 if not available
+      
+      // Use registered students count from teacher dashboard API, trying multiple field names
+      // Since API returns COUNT, use it for both total and registered
+      final studentsRegistered = (dashboardData?['COUNT'] as num?)?.toInt() ?? 
+                                (dashboardData?['students_registered'] as num?)?.toInt() ?? 
+                                (dashboardData?['registered_students'] as num?)?.toInt() ?? 
+                                (dashboardData?['student_registered'] as num?)?.toInt() ?? 
+                                (dashboardData?['registered_count'] as num?)?.toInt() ?? 
+                                (teacher['students_registered'] as num?)?.toInt() ?? 
+                                (teacher['registered_count'] as num?)?.toInt() ?? 
+                                0; // Default to 0 if not available
+      
+      // Calculate photos as double the registered students count
+      final photosUploaded = studentsRegistered * 2;
+      
+      print('Processed - Total: $totalStudents, Registered: $studentsRegistered, Photos: $photosUploaded');
+      print('---');
+      
+      // Get phone number from teacher data (already available in /fetch_teacher response)
+      final phoneNumber = teacher['mobile'] as String? ?? 
+                         dashboardData?['phone'] as String? ?? 
+                         dashboardData?['mobile'] as String? ?? '';
+      
+      // Generate a simple ID from name hash if no ID provided
+      final teacherId = (teacher['id'] as num?)?.toInt() ?? 
+                       (teacher['name'] as String? ?? '').hashCode.abs() % 10000;
+      
+      return {
+        'id': teacherId,
+        'teacherName': teacher['name'] as String? ?? 'अज्ञात शिक्षक',
+        'schoolName': teacher['school_name'] as String? ?? 'अज्ञात स्कूल',
+        'totalStudents': totalStudents,
+        'photosUploaded': photosUploaded,
+        'studentsRegistered': studentsRegistered,
+        'mobile': phoneNumber,
+        'username': teacher['username'] as String? ?? '',
+      };
     }).toList();
   }
+
+  void _applyFilters() {
+    filteredTeacherReports = teacherReports.where((teacher) {
+      final teacherName = (teacher['teacherName'] as String).toLowerCase();
+      final schoolName = (teacher['schoolName'] as String).toLowerCase();
+      final mobile = (teacher['mobile'] as String).toLowerCase();
+      
+      // Search filter only
+      final matchesSearch = _searchQuery.isEmpty ||
+          teacherName.contains(_searchQuery) ||
+          schoolName.contains(_searchQuery) ||
+          mobile.contains(_searchQuery);
+      
+      return matchesSearch;
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> get filteredReports => filteredTeacherReports;
 
   @override
   Widget build(BuildContext context) {
@@ -99,100 +213,144 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('रिपोर्ट डाउनलोड की गई')),
-                );
-              },
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadTeacherData,
             ),
           ],
         ),
-        body: Column(
-          children: [
-            // Filters Section
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: AppTheme.lightGray,
+        body: _isLoading 
+          ? const Center(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildDropdown(
-                          'अवधि',
-                          selectedPeriod,
-                          [
-                            {'value': 'thisMonth', 'label': 'इस महीने'},
-                            {'value': 'lastMonth', 'label': 'पिछले महीने'},
-                            {'value': 'thisQuarter', 'label': 'इस तिमाही'},
-                            {'value': 'thisYear', 'label': 'इस वर्ष'},
-                          ],
-                          (value) => setState(() => selectedPeriod = value),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildDropdown(
-                          'स्कूल',
-                          selectedSchool,
-                          [
-                            {'value': 'all', 'label': 'सभी स्कूल'},
-                            {'value': 'नारायणपुर', 'label': 'नारायणपुर'},
-                            {'value': 'धमतरी', 'label': 'धमतरी'},
-                            {'value': 'बिलासपुर', 'label': 'बिलासपुर'},
-                          ],
-                          (value) => setState(() => selectedSchool = value),
-                        ),
-                      ),
-                    ],
+                  CircularProgressIndicator(color: AppTheme.green),
+                  SizedBox(height: 16),
+                  Text(
+                    'शिक्षक डेटा लोड हो रहा है...',
+                    style: TextStyle(color: AppTheme.darkGray),
                   ),
                 ],
               ),
-            ),
-            
-            // Summary Cards
+            )
+          : _errorMessage != null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: AppTheme.orange,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: AppTheme.darkGray,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _loadTeacherData,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('पुनः प्रयास करें'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.green,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Column(
+          children: [
+            // Search Section
             Container(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildSummaryCard(
-                      'कुल शिक्षक',
+              color: AppTheme.lightGray,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'शिक्षक का नाम, स्कूल या मोबाइल नंबर खोजें...',
+                  prefixIcon: const Icon(Icons.search, color: AppTheme.darkGray),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: AppTheme.darkGray),
+                          onPressed: () {
+                            _searchController.clear();
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: AppTheme.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+            ),
+            
+            // Summary Card - Compact Total Teachers
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.green.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.people, color: AppTheme.green, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
                       filteredReports.length.toString(),
-                      Icons.people,
-                      AppTheme.blue,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.green,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildSummaryCard(
-                      'सक्रिय',
-                      filteredReports.where((r) => r['status'] != 'needs_improvement').length.toString(),
-                      Icons.check_circle,
-                      AppTheme.green,
+                    const SizedBox(width: 8),
+                    const Text(
+                      'कुल शिक्षक',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.darkGray,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildSummaryCard(
-                      'औसत दक्षता',
-                      '${(filteredReports.fold<int>(0, (sum, r) => sum + (r['efficiency'] as int)) / filteredReports.length).round()}%',
-                      Icons.analytics,
-                      AppTheme.purple,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             
             // Teacher Reports List
             Expanded(
               child: filteredReports.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'कोई रिपोर्ट नहीं मिली',
-                        style: TextStyle(fontSize: 16, color: AppTheme.darkGray),
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _searchQuery.isNotEmpty ? Icons.search_off : Icons.people_outline,
+                            size: 48,
+                            color: AppTheme.gray,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _searchQuery.isNotEmpty 
+                                ? 'कोई शिक्षक नहीं मिला'
+                                : 'कोई शिक्षक डेटा उपलब्ध नहीं है',
+                            style: const TextStyle(fontSize: 16, color: AppTheme.darkGray),
+                          ),
+                        ],
                       ),
                     )
                   : ListView.builder(
@@ -210,112 +368,7 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
     );
   }
 
-  Widget _buildDropdown(
-    String label,
-    String value,
-    List<Map<String, String>> options,
-    void Function(String) onChanged,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.darkGray,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppTheme.gray.withOpacity(0.3)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              onChanged: (newValue) => onChanged(newValue!),
-              isExpanded: true,
-              items: options.map((option) {
-                return DropdownMenuItem<String>(
-                  value: option['value'],
-                  child: Text(
-                    option['label']!,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.darkGray,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildReportCard(Map<String, dynamic> report) {
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
-    
-    switch (report['status']) {
-      case 'excellent':
-        statusColor = AppTheme.green;
-        statusText = 'उत्कृष्ट';
-        statusIcon = Icons.star;
-        break;
-      case 'good':
-        statusColor = AppTheme.blue;
-        statusText = 'अच्छा';
-        statusIcon = Icons.thumb_up;
-        break;
-      case 'needs_improvement':
-        statusColor = AppTheme.orange;
-        statusText = 'सुधार की आवश्यकता';
-        statusIcon = Icons.warning;
-        break;
-      default:
-        statusColor = AppTheme.gray;
-        statusText = 'अज्ञात';
-        statusIcon = Icons.help;
-    }
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -335,8 +388,8 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
-                    backgroundColor: statusColor.withOpacity(0.2),
-                    child: Icon(statusIcon, color: statusColor, size: 20),
+                    backgroundColor: AppTheme.green.withOpacity(0.2),
+                    child: Icon(Icons.person, color: AppTheme.green, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -359,22 +412,22 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                             color: AppTheme.darkGray.withOpacity(0.7),
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.phone, size: 12, color: AppTheme.green),
+                            const SizedBox(width: 4),
+                            Text(
+                              report['mobile'] as String,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.green,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      statusText,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
-                      ),
                     ),
                   ),
                 ],
@@ -382,79 +435,22 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
               
               const SizedBox(height: 12),
               
-              // Statistics Row
+              // Statistics Row - Commented out counts
+              /*
               Row(
                 children: [
                   _buildStatItem(Icons.people, '${report['totalStudents']} छात्र'),
                   const SizedBox(width: 16),
                   _buildStatItem(Icons.photo_library, '${report['photosUploaded']} फोटो'),
                   const SizedBox(width: 16),
-                  _buildStatItem(Icons.calendar_today, '${report['activeDays']}/${report['totalDays']} दिन'),
+                  _buildStatItem(Icons.how_to_reg, '${report['studentsRegistered']} रजिस्टर्ड'),
                 ],
               ),
-              
-              const SizedBox(height: 12),
-              
-              // Efficiency Bar
-              Row(
-                children: [
-                  const Text(
-                    'दक्षता: ',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.darkGray,
-                    ),
-                  ),
-                  Expanded(
-                    child: LinearProgressIndicator(
-                      value: (report['efficiency'] as int) / 100,
-                      backgroundColor: AppTheme.gray.withOpacity(0.3),
-                      valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${report['efficiency']}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Last Login
-              Text(
-                'अंतिम लॉगिन: ${report['lastLogin']}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.darkGray.withOpacity(0.6),
-                ),
-              ),
+              */
             ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildStatItem(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: AppTheme.darkGray.withOpacity(0.7)),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 11,
-            color: AppTheme.darkGray.withOpacity(0.7),
-          ),
-        ),
-      ],
     );
   }
 
@@ -517,23 +513,22 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                         _buildDetailCard(
                           'प्रदर्शन विवरण',
                           [
+                            _buildDetailRow('शिक्षक का नाम', report['teacherName'] as String),
+                            _buildDetailRow('स्कूल का नाम', report['schoolName'] as String),
                             _buildDetailRow('कुल छात्र', '${report['totalStudents']}'),
                             _buildDetailRow('रजिस्टर्ड छात्र', '${report['studentsRegistered']}'),
                             _buildDetailRow('अपलोडेड फोटो', '${report['photosUploaded']}'),
-                            _buildDetailRow('दक्षता स्कोर', '${report['efficiency']}%'),
                           ],
                         ),
                         
                         const SizedBox(height: 16),
                         
-                        // Activity Card
+                        // Contact Card
                         _buildDetailCard(
-                          'गतिविधि विवरण',
+                          'संपर्क विवरण',
                           [
-                            _buildDetailRow('सक्रिय दिन', '${report['activeDays']}'),
-                            _buildDetailRow('कुल दिन', '${report['totalDays']}'),
-                            _buildDetailRow('उपस्थिति प्रतिशत', '${((report['activeDays'] as int) * 100 / (report['totalDays'] as int)).round()}%'),
-                            _buildDetailRow('अंतिम लॉगिन', report['lastLogin'] as String),
+                            _buildDetailRow('मोबाइल नंबर', report['mobile'] as String),
+                            _buildDetailRow('यूजरनेम', report['username'] as String),
                           ],
                         ),
                         
@@ -544,11 +539,38 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                           children: [
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: () {
+                                onPressed: () async {
                                   Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('${report['teacherName'] as String} को संदेश भेजा गया')),
-                                  );
+                                  final phoneNumber = report['mobile'] as String;
+                                  if (phoneNumber.isNotEmpty) {
+                                    final Uri smsUri = Uri(
+                                      scheme: 'sms',
+                                      path: phoneNumber,
+                                      queryParameters: {'body': 'नमस्ते ${report['teacherName'] as String} जी, '},
+                                    );
+                                    
+                                    try {
+                                      if (await canLaunchUrl(smsUri)) {
+                                        await launchUrl(smsUri);
+                                      } else {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('SMS ऐप नहीं खुल सका')),
+                                          );
+                                        }
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('SMS भेजने में त्रुटि')),
+                                        );
+                                      }
+                                    }
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('मोबाइल नंबर उपलब्ध नहीं है')),
+                                    );
+                                  }
                                 },
                                 icon: const Icon(Icons.message),
                                 label: const Text('संदेश भेजें'),
@@ -560,11 +582,37 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: () {
+                                onPressed: () async {
                                   Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('${report['teacherName'] as String} से संपर्क किया गया')),
-                                  );
+                                  final phoneNumber = report['mobile'] as String;
+                                  if (phoneNumber.isNotEmpty) {
+                                    final Uri telUri = Uri(
+                                      scheme: 'tel',
+                                      path: phoneNumber,
+                                    );
+                                    
+                                    try {
+                                      if (await canLaunchUrl(telUri)) {
+                                        await launchUrl(telUri);
+                                      } else {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('डायलर नहीं खुल सका')),
+                                          );
+                                        }
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('कॉल करने में त्रुटि')),
+                                        );
+                                      }
+                                    }
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('मोबाइल नंबर उपलब्ध नहीं है')),
+                                    );
+                                  }
                                 },
                                 icon: const Icon(Icons.phone),
                                 label: const Text('कॉल करें'),

@@ -21,7 +21,7 @@ class HariHarPathshalaApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
-            title: 'एक पेड़ माँ के नाम 2.0',
+            title: 'हरिहर पाठशाला',
             theme: themeProvider.theme,
             home: const AppNavigator(),
             debugShowCheckedModeBanner: false,

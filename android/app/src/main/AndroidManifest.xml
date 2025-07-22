@@ -15,9 +15,9 @@
         android:required="false" />
 
     <application
-        android:label="HariHar Pathshala"
+        android:label="हरिहर पाठशाला"
         android:name="${applicationName}"
-        android:icon="@drawable/ic_launcher_legacy">
+        android:icon="@mipmap/ic_launcher">
         
         <activity
             android:name=".MainActivity"

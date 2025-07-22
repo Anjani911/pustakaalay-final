@@ -78,7 +78,7 @@ class _CertificateScreenState extends State<CertificateScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'एक पेड़ माँ के नाम 2.0',
+                    'हरिहर पाठशाला',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -257,7 +257,7 @@ class _CertificateScreenState extends State<CertificateScreen> {
               mainAxisAlignment: pw.MainAxisAlignment.center,
               children: [
                 pw.Text(
-                  'एक पेड़ माँ के नाम 2.0',
+                  'हरिहर पाठशाला',
                   style: pw.TextStyle(
                     fontSize: 28,
                     fontWeight: pw.FontWeight.bold,

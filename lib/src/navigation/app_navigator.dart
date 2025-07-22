@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 
+// === SPLASH SCREEN ===
+import '../screens/splash_screen.dart';
+
 // === AUTHENTICATION SCREENS ===
 import '../screens/auth/user_type_selection_screen.dart';
 import '../screens/auth/teacher_login_screen.dart';
@@ -13,7 +16,6 @@ import '../screens/teacher/students_data_screen.dart';
 import '../screens/teacher/certificate_screen.dart';
 import '../screens/teacher/new_certificate_screen.dart';
 import '../screens/teacher/photo_upload_screen.dart';
-import '../screens/teacher/new_photo_upload_screen.dart';
 import '../screens/teacher/previous_photos_screen.dart';
 
 // === CRC SUPERVISOR SCREENS ===
@@ -56,6 +58,10 @@ class AppNavigator extends StatelessWidget {
     
     switch (appState.currentScreen) {
       
+      // === SPLASH SCREEN ===
+      case AppScreen.splash:
+        return const SplashScreen();
+      
       // === AUTHENTICATION SECTION ===
       case AppScreen.userTypeSelection:
         return const UserTypeSelectionScreen();
@@ -83,7 +89,7 @@ class AppNavigator extends StatelessWidget {
         return const PhotoUploadScreen();
       
       case AppScreen.newPhotoUpload:
-        return const NewPhotoUploadScreen();
+        return const PhotoUploadScreen();
       
       case AppScreen.previousPhotos:
         return const PreviousPhotosScreen();

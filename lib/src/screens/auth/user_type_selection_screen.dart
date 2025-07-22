@@ -14,15 +14,15 @@ class UserTypeSelectionScreen extends StatelessWidget {
       {
         'id': UserType.teacher,
         'title': 'शिक्षक लॉगिन',
-        'subtitle': 'Teacher Login Portal',
-        'description': 'पेड़ लगाने वाले शिक्षकों के लिए',
+        'subtitle': 'हरिहर पाठशाला',
+        'description': 'शिक्षकों के लिए',
         'bgColor': AppTheme.green,
         'lightColor': AppTheme.lightGreen,
       },
       {
         'id': UserType.crc,
         'title': 'सुपरवाइजर लॉगिन',
-        'subtitle': 'Supervisor Login Portal',
+        'subtitle': 'हरिहर पाठशाला',
         'description': 'स्कूल निगरानी अधिकारी',
         'bgColor': AppTheme.blue,
         'lightColor': AppTheme.lightBlue,
@@ -52,8 +52,11 @@ class UserTypeSelectionScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'एक पेड़ माँ के नाम 2.0',
-                      style: Theme.of(context).textTheme.headlineLarge,
+                      'हरिहर पाठशाला',
+                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),

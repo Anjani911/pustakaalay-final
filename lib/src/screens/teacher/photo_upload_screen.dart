@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../providers/app_state_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/api_service.dart';
 
 class PhotoUploadScreen extends StatefulWidget {
   const PhotoUploadScreen({super.key});
@@ -14,29 +15,36 @@ class PhotoUploadScreen extends StatefulWidget {
 
 class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   final ImagePicker _picker = ImagePicker();
-  File? _selectedImage;
+  File? _childPlantImage; // बच्चे और पौधे की फोटो
+  File? _certificateImage; // सर्टिफिकेट की फोटो
   final _formKey = GlobalKey<FormState>();
   final _studentNameController = TextEditingController();
-  final _classController = TextEditingController();
   final _schoolController = TextEditingController();
-  final _remarksController = TextEditingController();
+  final _classController = TextEditingController();
+  final _plantNameController = TextEditingController();
+  final _mobileController = TextEditingController();
   bool _isUploading = false;
 
   @override
   void dispose() {
     _studentNameController.dispose();
-    _classController.dispose();
     _schoolController.dispose();
-    _remarksController.dispose();
+    _classController.dispose();
+    _plantNameController.dispose();
+    _mobileController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickImage(ImageSource source, String imageType) async {
     try {
       final XFile? image = await _picker.pickImage(source: source);
       if (image != null) {
         setState(() {
-          _selectedImage = File(image.path);
+          if (imageType == 'child_plant') {
+            _childPlantImage = File(image.path);
+          } else if (imageType == 'certificate') {
+            _certificateImage = File(image.path);
+          }
         });
       }
     } catch (e) {
@@ -47,46 +55,96 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   }
 
   Future<void> _uploadPhoto() async {
-    if (_formKey.currentState!.validate() && _selectedImage != null) {
+    if (_formKey.currentState!.validate() && 
+        _childPlantImage != null && 
+        _certificateImage != null) {
       setState(() {
         _isUploading = true;
       });
 
-      // Simulate upload process
-      await Future.delayed(const Duration(seconds: 3));
+      try {
+        // Get UDISE code from app state
+        final appState = Provider.of<AppStateProvider>(context, listen: false);
+        String udiseCode = appState.udiseCode ?? "1234"; // Fallback to 1234 if not available
+        
+        // Call API to register student with actual file objects
+        final result = await ApiService.registerStudent(
+          name: _studentNameController.text.trim(),
+          schoolName: _schoolController.text.trim(),
+          className: _classController.text.trim(),
+          mobile: _mobileController.text.trim(),
+          nameOfTree: _plantNameController.text.trim(),
+          plantImage: _childPlantImage!,
+          certificateImage: _certificateImage!,
+          udiseCode: udiseCode,
+        );
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('फोटो सफलतापूर्वक अपलोड हो गई!'),
-          backgroundColor: AppTheme.green,
-        ),
-      );
+        if (result['success'] == true) {
+          // Registration successful
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('छात्र पंजीकरण सफल रहा!'),
+              backgroundColor: AppTheme.green,
+            ),
+          );
 
-      // Reset form
+          // Reset form
+          setState(() {
+            _childPlantImage = null;
+            _certificateImage = null;
+            _isUploading = false;
+          });
+          _formKey.currentState!.reset();
+          _studentNameController.clear();
+          _schoolController.clear();
+          _classController.clear();
+          _plantNameController.clear();
+          _mobileController.clear();
+        } else {
+          // Registration failed
+          String errorMessage = 'पंजीकरण असफल';
+          if (result['data'] != null && result['data']['message'] != null) {
+            errorMessage = result['data']['message'].toString();
+          }
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('नेटवर्क एरर: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+
       setState(() {
-        _selectedImage = null;
         _isUploading = false;
       });
-      _formKey.currentState!.reset();
-      _studentNameController.clear();
-      _classController.clear();
-      _schoolController.clear();
-      _remarksController.clear();
-    } else if (_selectedImage == null) {
+    } else if (_childPlantImage == null || _certificateImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('कृपया पहले फोटो सेलेक्ट करें')),
+        const SnackBar(content: Text('कृपया दोनों फोटो सेलेक्ट करें')),
       );
     }
   }
 
-  void _showImageSourceDialog() {
-    showDialog(
+  void _showImageSourceDialog(String imageType) {
+    String title = imageType == 'child_plant' ? 'बच्चे और पौधे की फोटो' : 'सर्टिफिकेट की फोटो';
+    
+    showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('फोटो कैसे लें?'),
+          title: Text('$title कैसे लें?'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -95,7 +153,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                 title: const Text('कैमरा से फोटो लें'),
                 onTap: () {
                   Navigator.of(context).pop();
-                  _pickImage(ImageSource.camera);
+                  _pickImage(ImageSource.camera, imageType);
                 },
               ),
               ListTile(
@@ -103,7 +161,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                 title: const Text('गैलरी से चुनें'),
                 onTap: () {
                   Navigator.of(context).pop();
-                  _pickImage(ImageSource.gallery);
+                  _pickImage(ImageSource.gallery, imageType);
                 },
               ),
             ],
@@ -156,8 +214,9 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          '• छात्र, पेड़ और शिक्षक तीनों फोटो में दिखने चाहिए\n'
-                          '• फोटो साफ और स्पष्ट होनी चाहिए\n'
+                          '• पहली फोटो: छात्र, पेड़ और शिक्षक तीनों दिखने चाहिए\n'
+                          '• दूसरी फोटो: पेड़ लगाने का सर्टिफिकेट\n'
+                          '• दोनों फोटो साफ और स्पष्ट होनी चाहिए\n'
                           '• उचित रोशनी में फोटो लें',
                           style: TextStyle(
                             fontSize: 14,
@@ -170,11 +229,21 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Photo selection area
+                // Photo selection areas
+                // 1. Child and Plant Photo
+                const Text(
+                  '1. बच्चे और पौधे की फोटो',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.darkGray,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 GestureDetector(
-                  onTap: _showImageSourceDialog,
+                  onTap: () => _showImageSourceDialog('child_plant'),
                   child: Container(
-                    height: 200,
+                    height: 180,
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: AppTheme.primaryGreen,
@@ -182,13 +251,13 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                         style: BorderStyle.solid,
                       ),
                       borderRadius: BorderRadius.circular(12),
-                      color: _selectedImage != null ? null : AppTheme.lightGreen,
+                      color: _childPlantImage != null ? null : AppTheme.lightGreen,
                     ),
-                    child: _selectedImage != null
+                    child: _childPlantImage != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(10),
                             child: Image.file(
-                              _selectedImage!,
+                              _childPlantImage!,
                               fit: BoxFit.cover,
                               width: double.infinity,
                             ),
@@ -198,14 +267,70 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                             children: [
                               Icon(
                                 Icons.add_a_photo,
-                                size: 60,
+                                size: 50,
                                 color: AppTheme.primaryGreen,
                               ),
-                              SizedBox(height: 16),
+                              SizedBox(height: 8),
                               Text(
-                                'फोटो सेलेक्ट करने के लिए यहाँ टैप करें',
+                                'बच्चे और पौधे की फोटो लें',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 14,
+                                  color: AppTheme.darkGray,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // 2. Certificate Photo
+                const Text(
+                  '2. सर्टिफिकेट की फोटो',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.darkGray,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () => _showImageSourceDialog('certificate'),
+                  child: Container(
+                    height: 180,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: AppTheme.blue,
+                        width: 2,
+                        style: BorderStyle.solid,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      color: _certificateImage != null ? null : AppTheme.lightBlue,
+                    ),
+                    child: _certificateImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.file(
+                              _certificateImage!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                            ),
+                          )
+                        : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.description,
+                                size: 50,
+                                color: AppTheme.blue,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'सर्टिफिकेट की फोटो लें',
+                                style: TextStyle(
+                                  fontSize: 14,
                                   color: AppTheme.darkGray,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -252,23 +377,6 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                         const SizedBox(height: 16),
 
                         TextFormField(
-                          controller: _classController,
-                          decoration: const InputDecoration(
-                            labelText: 'कक्षा',
-                            hintText: 'उदाहरण: कक्षा 5',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.class_),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'कृपया कक्षा दर्ज करें';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        TextFormField(
                           controller: _schoolController,
                           decoration: const InputDecoration(
                             labelText: 'स्कूल का नाम',
@@ -286,14 +394,57 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                         const SizedBox(height: 16),
 
                         TextFormField(
-                          controller: _remarksController,
-                          maxLines: 3,
+                          controller: _classController,
                           decoration: const InputDecoration(
-                            labelText: 'टिप्पणी (वैकल्पिक)',
-                            hintText: 'कोई अतिरिक्त जानकारी...',
+                            labelText: 'कक्षा',
+                            hintText: 'उदाहरण: कक्षा 1, कक्षा 2, कक्षा 3',
                             border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.note),
+                            prefixIcon: Icon(Icons.class_),
                           ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'कृपया कक्षा दर्ज करें';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: _plantNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'पेड़ का नाम',
+                            hintText: 'उदाहरण: आम, नीम, पीपल',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.park),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'कृपया पेड़ का नाम दर्ज करें';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: _mobileController,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'मोबाइल नंबर',
+                            hintText: '10 अंकों का मोबाइल नंबर दर्ज करें',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.phone),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'कृपया मोबाइल नंबर दर्ज करें';
+                            }
+                            if (value.length != 10) {
+                              return 'मोबाइल नंबर 10 अंकों का होना चाहिए';
+                            }
+                            return null;
+                          },
                         ),
                       ],
                     ),
@@ -317,7 +468,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                           )
                         : const Icon(Icons.cloud_upload),
                     label: Text(
-                      _isUploading ? 'अपलोड हो रहा है...' : 'फोटो अपलोड करें',
+                      _isUploading ? 'पंजीकरण हो रहा है...' : 'छात्र पंजीकरण करें',
                       style: const TextStyle(fontSize: 16),
                     ),
                   ),

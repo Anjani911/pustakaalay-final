@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 enum UserType { teacher, crc }
 
 enum AppScreen {
+  // === SPLASH SCREEN ===
+  splash,                // Initial splash screen
+  
   // === AUTHENTICATION SECTION ===
   userTypeSelection,      // Main entry point - user type selection
   teacherLogin,          // Teacher authentication
@@ -29,17 +32,19 @@ enum AppScreen {
 }
 
 class AppStateProvider extends ChangeNotifier {
-  AppScreen _currentScreen = AppScreen.userTypeSelection;
+  AppScreen _currentScreen = AppScreen.splash;
   final List<AppScreen> _navigationStack = [AppScreen.userTypeSelection];
   bool _isLoggedIn = false;
   UserType? _userType;
   String? _loggedInUser;
+  String? _udiseCode; // Store UDISE code for teacher login
 
   // Getters
   AppScreen get currentScreen => _currentScreen;
   bool get isLoggedIn => _isLoggedIn;
   UserType? get userType => _userType;
   String? get loggedInUser => _loggedInUser;
+  String? get udiseCode => _udiseCode;
   bool get canGoBack => _navigationStack.length > 1;
 
   // Navigation methods
@@ -95,10 +100,11 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   // Handle login success
-  void handleLoginSuccess(UserType type, {String? username}) {
+  void handleLoginSuccess(UserType type, {String? username, String? udiseCode}) {
     _isLoggedIn = true;
     _userType = type;
     _loggedInUser = username;
+    _udiseCode = udiseCode; // Store UDISE code
     
     switch (type) {
       case UserType.teacher:
@@ -115,6 +121,7 @@ class AppStateProvider extends ChangeNotifier {
     _isLoggedIn = false;
     _userType = null;
     _loggedInUser = null;
+    _udiseCode = null; // Clear UDISE code on logout
     _navigationStack.clear();
     _navigationStack.add(AppScreen.userTypeSelection);
     navigateToScreen(AppScreen.userTypeSelection);

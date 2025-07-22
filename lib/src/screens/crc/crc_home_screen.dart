@@ -2,22 +2,67 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/api_service.dart';
 
-class CRCHomeScreen extends StatelessWidget {
+class CRCHomeScreen extends StatefulWidget {
   const CRCHomeScreen({super.key});
+
+  @override
+  State<CRCHomeScreen> createState() => _CRCHomeScreenState();
+}
+
+class _CRCHomeScreenState extends State<CRCHomeScreen> {
+  Map<String, dynamic> dashboardData = {};
+  bool isLoading = true;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      // Get app state to get UDISE code
+      final appState = Provider.of<AppStateProvider>(context, listen: false);
+      final udiseCode = appState.udiseCode;
+      
+      print('CRC Home - Loading dashboard with UDISE code: $udiseCode');
+      
+      final result = await ApiService.getSupervisorDashboard(udiseCode: udiseCode);
+      
+      if (result['success'] == true) {
+        setState(() {
+          dashboardData = result['data'] as Map<String, dynamic>? ?? {};
+          isLoading = false;
+        });
+        print('Dashboard data loaded successfully: ${dashboardData.keys}');
+      } else {
+        setState(() {
+          errorMessage = (result['data']['message'] as String?) ?? 'डैशबोर्ड डेटा लोड करने में त्रुटि';
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Dashboard loading error: $e');
+      setState(() {
+        errorMessage = 'डैशबोर्ड डेटा लोड करने में त्रुटि';
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppStateProvider>(context);
     
     final supervisorActions = [
-      {
-        'id': AppScreen.schoolMonitoring,
-        'title': 'स्कूल मॉनिटरिंग',
-        'subtitle': 'स्कूलों की निगरानी और जांच',
-        'icon': Icons.school,
-        'color': AppTheme.blue,
-      },
       {
         'id': AppScreen.teacherReports,
         'title': 'शिक्षक रिपोर्ट',
@@ -31,13 +76,6 @@ class CRCHomeScreen extends StatelessWidget {
         'subtitle': 'अपलोड किए गए डेटा की जांच',
         'icon': Icons.verified,
         'color': AppTheme.purple,
-      },
-      {
-        'id': AppScreen.progressTracking,
-        'title': 'प्रगति ट्रैकिंग',
-        'subtitle': 'जिले की समग्र प्रगति',
-        'icon': Icons.track_changes,
-        'color': AppTheme.orange,
       },
     ];
 
@@ -54,235 +92,245 @@ class CRCHomeScreen extends StatelessWidget {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // Header section
-              Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: AppTheme.blue,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                  ),
-                ),
-                padding: const EdgeInsets.only(bottom: 30),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    const CircleAvatar(
-                      radius: 40,
-                      backgroundColor: AppTheme.white,
-                      child: Icon(
-                        Icons.supervisor_account,
-                        size: 50,
-                        color: AppTheme.blue,
-                      ),
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : errorMessage != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          errorMessage!,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: AppTheme.darkGray,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadDashboardData,
+                          child: const Text('पुनः प्रयास करें'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'एक पेड़ माँ के नाम 2.0',
-                      style: TextStyle(
-                        color: AppTheme.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'सुपरवाइजर डैशबोर्ड',
-                      style: TextStyle(
-                        color: AppTheme.white,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Quick actions grid
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'निगरानी कार्य',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.darkGray,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 1.1,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                      ),
-                      itemCount: supervisorActions.length,
-                      itemBuilder: (context, index) {
-                        final action = supervisorActions[index];
-                        return _buildActionCard(
-                          context,
-                          appState,
-                          action['title'] as String,
-                          action['subtitle'] as String,
-                          action['icon'] as IconData,
-                          action['color'] as Color,
-                          action['id'] as AppScreen,
-                        );
-                      },
-                    ),
-                    
-                    const SizedBox(height: 30),
-                    
-                    // Statistics section
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.analytics,
+                  )
+                : SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        // Header section
+                        Container(
+                          width: double.infinity,
+                          decoration: const BoxDecoration(
+                            color: AppTheme.blue,
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(30),
+                              bottomRight: Radius.circular(30),
+                            ),
+                          ),
+                          padding: const EdgeInsets.only(bottom: 30),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 20),
+                              const CircleAvatar(
+                                radius: 40,
+                                backgroundColor: AppTheme.white,
+                                child: Icon(
+                                  Icons.supervisor_account,
+                                  size: 50,
                                   color: AppTheme.blue,
-                                  size: 28,
                                 ),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'जिला सांख्यिकी',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.darkGray,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildStatCard(
-                                    'कुल स्कूल',
-                                    '145',
-                                    Icons.school,
-                                    AppTheme.blue,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildStatCard(
-                                    'सक्रिय शिक्षक',
-                                    '342',
-                                    Icons.people,
-                                    AppTheme.green,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildStatCard(
-                                    'अपलोडेड फोटो',
-                                    '1,248',
-                                    Icons.photo_library,
-                                    AppTheme.purple,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildStatCard(
-                                    'रजिस्टर्ड छात्र',
-                                    '8,756',
-                                    Icons.child_care,
-                                    AppTheme.orange,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Recent activities
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'हाल की गतिविधि',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.darkGray,
                               ),
-                            ),
-                            const SizedBox(height: 16),
-                            
-                            _buildActivityItem(
-                              'राजकीय प्राथमिक शाला, नारायणपुर',
-                              '25 फोटो अपलोड किए गए',
-                              '2 घंटे पहले',
-                              Icons.photo_camera,
-                              AppTheme.green,
-                            ),
-                            const Divider(),
-                            
-                            _buildActivityItem(
-                              'राजकीय मध्य शाला, रायपुर',
-                              '15 छात्र रजिस्टर किए गए',
-                              '4 घंटे पहले',
-                              Icons.person_add,
-                              AppTheme.blue,
-                            ),
-                            const Divider(),
-                            
-                            _buildActivityItem(
-                              'राजकीय उच्च शाला, धमतरी',
-                              'डेटा वेरिफिकेशन पूर्ण',
-                              '6 घंटे पहले',
-                              Icons.verified,
-                              AppTheme.purple,
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+                              const Text(
+                                'हरिहर पाठशाला',
+                                style: TextStyle(
+                                  color: AppTheme.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'सुपरवाइजर डैशबोर्ड',
+                                style: TextStyle(
+                                  color: AppTheme.white,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                        
+                        // Quick actions grid
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'निगरानी कार्य',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.darkGray,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  childAspectRatio: 1.1,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                ),
+                                itemCount: supervisorActions.length,
+                                itemBuilder: (context, index) {
+                                  final action = supervisorActions[index];
+                                  return _buildActionCard(
+                                    context,
+                                    appState,
+                                    action['title'] as String,
+                                    action['subtitle'] as String,
+                                    action['icon'] as IconData,
+                                    action['color'] as Color,
+                                    action['id'] as AppScreen,
+                                  );
+                                },
+                              ),
+                              
+                              const SizedBox(height: 30),
+                              
+                              // Statistics section with real data
+                              Card(
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.analytics,
+                                            color: AppTheme.blue,
+                                            size: 28,
+                                          ),
+                                          SizedBox(width: 12),
+                                          Text(
+                                            'जिला सांख्यिकी',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.darkGray,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 20),
+                                      
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildStatCard(
+                                              'कुल स्कूल',
+                                              _getStatValue('total_schools', '145'),
+                                              Icons.school,
+                                              AppTheme.blue,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: _buildStatCard(
+                                              'सक्रिय शिक्षक',
+                                              _getStatValue('active_teachers', '342'),
+                                              Icons.people,
+                                              AppTheme.green,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildStatCard(
+                                              'अपलोडेड फोटो',
+                                              _getStatValue('uploaded_photos', '1,248'),
+                                              Icons.photo_library,
+                                              AppTheme.purple,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: _buildStatCard(
+                                              'रजिस्टर्ड छात्र',
+                                              _getStatValue('registered_students', '8,756'),
+                                              Icons.child_care,
+                                              AppTheme.orange,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              
+                              const SizedBox(height: 20),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+                  ),
       ),
     );
+  }
+
+  String _getStatValue(String key, String defaultValue) {
+    // Handle special photo calculation (double the student count)
+    if (key == 'uploaded_photos') {
+      if (dashboardData.containsKey('total_number_of_student')) {
+        final studentCount = dashboardData['total_number_of_student'] as int? ?? 0;
+        return (studentCount * 2).toString();
+      }
+      return defaultValue;
+    }
+    
+    // Map the display keys to API response keys
+    String apiKey;
+    switch (key) {
+      case 'total_schools':
+        apiKey = 'total_number_of_school';
+        break;
+      case 'active_teachers':
+        apiKey = 'total_number_of_teacher';
+        break;
+      case 'registered_students':
+        apiKey = 'total_number_of_student';
+        break;
+      default:
+        apiKey = key;
+    }
+    
+    if (dashboardData.containsKey(apiKey)) {
+      return dashboardData[apiKey].toString();
+    }
+    return defaultValue;
   }
 
   Widget _buildActionCard(
@@ -301,7 +349,6 @@ class CRCHomeScreen extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () {
-          // Navigate to real CRC screens
           appState.navigateToScreen(screen);
         },
         borderRadius: BorderRadius.circular(16),
@@ -388,61 +435,6 @@ class CRCHomeScreen extends StatelessWidget {
               color: AppTheme.darkGray,
             ),
             textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivityItem(
-    String title,
-    String description,
-    String time,
-    IconData icon,
-    Color color,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.darkGray,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.darkGray.withOpacity(0.7),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            time,
-            style: TextStyle(
-              fontSize: 10,
-              color: AppTheme.darkGray.withOpacity(0.5),
-            ),
           ),
         ],
       ),

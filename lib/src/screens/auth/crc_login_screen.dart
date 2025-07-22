@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/api_service.dart';
 
 class CRCLoginScreen extends StatefulWidget {
   const CRCLoginScreen({super.key});
@@ -30,13 +31,73 @@ class _CRCLoginScreenState extends State<CRCLoginScreen> {
         _isLoading = true;
       });
 
-      // Simulate login process
-      await Future.delayed(const Duration(seconds: 2));
+      try {
+        // Call API login
+        final result = await ApiService.supervisorLogin(
+          username: _usernameController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      final appState = Provider.of<AppStateProvider>(context, listen: false);
-      appState.handleLoginSuccess(UserType.crc, username: _usernameController.text);
+        if (result['success'] == true) {
+          // Login successful
+          final appState = Provider.of<AppStateProvider>(context, listen: false);
+          
+          // Debug: Print full response for verification
+          print('Full login response: ${result['data']}');
+          
+          // Extract UDISE code from response if available
+          String? udiseCode;
+          // The response structure is: result['data']['data']['udise_code']
+          if (result['data'] != null && 
+              result['data']['data'] != null && 
+              result['data']['data']['udise_code'] != null) {
+            udiseCode = result['data']['data']['udise_code'].toString();
+            print('Supervisor UDISE code extracted from login: $udiseCode');
+          } else {
+            print('No UDISE code found in login response');
+            print('Response data keys: ${result['data']?.keys}');
+            print('Inner data keys: ${result['data']?['data']?.keys}');
+          }
+          
+          appState.handleLoginSuccess(
+            UserType.crc, 
+            username: _usernameController.text.trim(),
+            udiseCode: udiseCode,
+          );
+          
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('लॉगिन सफल रहा!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          // Login failed
+          String errorMessage = 'लॉगिन असफल';
+          if (result['data'] != null && result['data']['message'] != null) {
+            errorMessage = result['data']['message'].toString();
+          }
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('नेटवर्क एरर: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
 
       setState(() {
         _isLoading = false;
@@ -76,7 +137,7 @@ class _CRCLoginScreenState extends State<CRCLoginScreen> {
                 const SizedBox(height: 20),
                 
                 Text(
-                  'सुपरवाइजर पोर्टल में स्वागत',
+                  'हरिहर पाठशाला में स्वागत',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: AppTheme.blue,
                   ),
@@ -200,13 +261,23 @@ class _CRCLoginScreenState extends State<CRCLoginScreen> {
                 const SizedBox(height: 20),
                 
                 // Help text
-                const Text(
-                  'लॉगिन में समस्या? कृपया जिला शिक्षा अधिकारी से संपर्क करें।',
-                  style: TextStyle(
-                    color: AppTheme.darkGray,
-                    fontSize: 12,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightBlue,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppTheme.blue.withOpacity(0.3),
+                    ),
                   ),
-                  textAlign: TextAlign.center,
+                  child: const Text(
+                    'लॉगिन में समस्या? कृपया जिला शिक्षा अधिकारी से संपर्क करें।',
+                    style: TextStyle(
+                      color: AppTheme.darkGray,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ],
             ),

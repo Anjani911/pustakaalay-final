@@ -2,42 +2,79 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/api_service.dart';
 
-class TeacherHomeScreen extends StatelessWidget {
+class TeacherHomeScreen extends StatefulWidget {
   const TeacherHomeScreen({super.key});
+
+  @override
+  State<TeacherHomeScreen> createState() => _TeacherHomeScreenState();
+}
+
+class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
+  Map<String, dynamic>? _dashboardData;
+  bool _isLoading = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+  }
+
+  Future<void> _fetchDashboardData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final appState = Provider.of<AppStateProvider>(context, listen: false);
+      final udiseCode = appState.udiseCode ?? "1234";
+      
+      final result = await ApiService.getTeacherDashboard(udiseCode);
+      
+      if (result['success'] == true && result['data'] != null) {
+        setState(() {
+          _dashboardData = Map<String, dynamic>.from(result['data'] as Map);
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = result['data']?['message']?.toString() ?? 'डैशबोर्ड डेटा लोड नहीं हो सका';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'नेटवर्क एरर: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppStateProvider>(context);
     
+    // Get student count from dashboard data, fallback to 0
+    final studentCount = _dashboardData?['COUNT'] ?? 0;
+    final photoUploads = studentCount * 2; // Twice the student count
+    
     final quickActions = [
       {
         'id': AppScreen.photoUpload,
-        'title': 'फोटो अपलोड',
-        'subtitle': 'छात्र + पेड़ + शिक्षिका फोटो',
-        'icon': Icons.camera_alt,
+        'title': 'छात्र रजिस्ट्रेशन',
+        'subtitle': 'नए छात्र का पंजीकरण करें',
+        'icon': Icons.person_add,
         'color': AppTheme.green,
       },
       {
         'id': AppScreen.studentsData,
-        'title': 'छात्र रजिस्ट्रेशन',
-        'subtitle': 'प्रत्येक छात्र की जानकारी',
+        'title': 'छात्र विवरण',
+        'subtitle': 'छात्रों की जानकारी देखें',
         'icon': Icons.people,
         'color': AppTheme.blue,
-      },
-      {
-        'id': AppScreen.certificate,
-        'title': 'सर्टिफिकेट डाउनलोड',
-        'subtitle': 'छात्रों के लिए प्रमाणपत्र',
-        'icon': Icons.card_membership,
-        'color': AppTheme.purple,
-      },
-      {
-        'id': AppScreen.previousPhotos,
-        'title': 'अपलोडेड फोटो देखें',
-        'subtitle': 'पहले अपलोड किए फोटो',
-        'icon': Icons.photo_library,
-        'color': AppTheme.orange,
       },
     ];
 
@@ -47,6 +84,10 @@ class TeacherHomeScreen extends StatelessWidget {
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchDashboardData,
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => _showLogoutDialog(context, appState),
@@ -82,7 +123,7 @@ class TeacherHomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'एक पेड़ माँ के नाम 2.0',
+                      'हरिहर पाठशाला',
                       style: TextStyle(
                         color: AppTheme.white,
                         fontSize: 22,
@@ -122,7 +163,7 @@ class TeacherHomeScreen extends StatelessWidget {
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        childAspectRatio: 1.1,
+                        childAspectRatio: 0.9,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
                       ),
@@ -163,7 +204,7 @@ class TeacherHomeScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 12),
                                 const Text(
-                                  'आपकी प्रगति',
+                                  'प्रगति',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -172,12 +213,55 @@ class TeacherHomeScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
-                            _buildProgressItem('फोटो अपलोड', '12/15', 0.8),
-                            const SizedBox(height: 12),
-                            _buildProgressItem('छात्र रजिस्ट्रेशन', '28/30', 0.93),
-                            const SizedBox(height: 12),
-                            _buildProgressItem('सर्टिफिकेट जेनरेट', '25/28', 0.89),
+                            const SizedBox(height: 20),
+                            _isLoading 
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppTheme.primaryGreen,
+                                    ),
+                                  )
+                                : _errorMessage.isNotEmpty
+                                    ? Center(
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              _errorMessage,
+                                              style: const TextStyle(
+                                                color: Colors.red,
+                                                fontSize: 14,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 8),
+                                            TextButton.icon(
+                                              onPressed: _fetchDashboardData,
+                                              icon: const Icon(Icons.refresh),
+                                              label: const Text('पुनः प्रयास करें'),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    : Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildProgressItem(
+                                              'फोटो अपलोड',
+                                              '${photoUploads}',
+                                              Icons.camera_alt,
+                                              AppTheme.green,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 20),
+                                          Expanded(
+                                            child: _buildProgressItem(
+                                              'छात्र रजिस्ट्रेशन',
+                                              '${studentCount}',
+                                              Icons.person_add,
+                                              AppTheme.blue,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                           ],
                         ),
                       ),
@@ -234,7 +318,7 @@ class TeacherHomeScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(12),
@@ -246,25 +330,31 @@ class TeacherHomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.darkGray,
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.darkGray,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.darkGray.withOpacity(0.7),
+              const SizedBox(height: 6),
+              Flexible(
+                child: Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.darkGray.withOpacity(0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -273,34 +363,40 @@ class TeacherHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProgressItem(String title, String progress, double value) {
+  Widget _buildProgressItem(String title, String count, IconData icon, Color color) {
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppTheme.darkGray,
-              ),
-            ),
-            Text(
-              progress,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.darkGray,
-              ),
-            ),
-          ],
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 32,
+          ),
         ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: value,
-          backgroundColor: AppTheme.lightGreen,
-          valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.green),
+        const SizedBox(height: 12),
+        Text(
+          count,
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 13,
+            color: AppTheme.darkGray,
+          ),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
