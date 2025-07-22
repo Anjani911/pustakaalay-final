@@ -3,28 +3,28 @@ import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 
 // === AUTHENTICATION SCREENS ===
-import '../screens/user_type_selection_screen.dart';
-import '../screens/teacher_login_screen.dart';
-import '../screens/crc_login_screen.dart';
+import '../screens/auth/user_type_selection_screen.dart';
+import '../screens/auth/teacher_login_screen.dart';
+import '../screens/auth/crc_login_screen.dart';
 
 // === TEACHER SCREENS ===
-import '../screens/teacher_home_screen.dart';
-import '../screens/students_data_screen.dart';
-import '../screens/certificate_screen.dart';
-import '../screens/new_certificate_screen.dart';
-import '../screens/photo_upload_screen.dart';
-import '../screens/new_photo_upload_screen.dart';
-import '../screens/previous_photos_screen.dart';
+import '../screens/teacher/teacher_home_screen.dart';
+import '../screens/teacher/students_data_screen.dart';
+import '../screens/teacher/certificate_screen.dart';
+import '../screens/teacher/new_certificate_screen.dart';
+import '../screens/teacher/photo_upload_screen.dart';
+import '../screens/teacher/new_photo_upload_screen.dart';
+import '../screens/teacher/previous_photos_screen.dart';
 
 // === CRC SUPERVISOR SCREENS ===
-import '../screens/crc_home_screen.dart';
-import '../screens/school_monitoring_screen.dart';
-import '../screens/teacher_reports_screen.dart';
-import '../screens/data_verification_screen.dart';
-import '../screens/progress_tracking_screen.dart';
+import '../screens/crc/crc_home_screen.dart';
+import '../screens/crc/school_monitoring_screen.dart';
+import '../screens/crc/teacher_reports_screen.dart';
+import '../screens/crc/data_verification_screen.dart';
+import '../screens/crc/progress_tracking_screen.dart';
 
 // === SHARED/COMMON SCREENS ===
-import '../screens/dashboard_screen.dart';
+import '../screens/shared/dashboard_screen.dart';
 
 class AppNavigator extends StatelessWidget {
   const AppNavigator({super.key});
