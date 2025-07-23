@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 enum UserType { teacher, crc }
 
@@ -7,9 +10,7 @@ enum AppScreen {
   splash,                // Initial splash screen
   
   // === AUTHENTICATION SECTION ===
-  userTypeSelection,      // Main entry point - user type selection
-  teacherLogin,          // Teacher authentication
-  crcLogin,              // CRC Supervisor authentication
+  schoolLogin,           // Unified school login screen
   
   // === TEACHER SECTION ===
   teacherHome,           // Teacher dashboard/home
@@ -33,11 +34,12 @@ enum AppScreen {
 
 class AppStateProvider extends ChangeNotifier {
   AppScreen _currentScreen = AppScreen.splash;
-  final List<AppScreen> _navigationStack = [AppScreen.userTypeSelection];
+  final List<AppScreen> _navigationStack = [AppScreen.schoolLogin];
   bool _isLoggedIn = false;
   UserType? _userType;
   String? _loggedInUser;
-  String? _udiseCode; // Store UDISE code for teacher login
+  String? _udiseCode;
+  String? _employeeId;
 
   // Getters
   AppScreen get currentScreen => _currentScreen;
@@ -51,7 +53,7 @@ class AppStateProvider extends ChangeNotifier {
   void navigateToScreen(AppScreen screen) {
     print('Navigation called with screen: $screen');
     
-    if (screen == AppScreen.userTypeSelection) {
+    if (screen == AppScreen.schoolLogin) {
       _isLoggedIn = false;
       _userType = null;
       _loggedInUser = null;
@@ -87,15 +89,32 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   // Handle user type selection
-  void selectUserType(UserType type) {
-    _userType = type;
-    switch (type) {
-      case UserType.teacher:
-        navigateToScreen(AppScreen.teacherLogin);
-        break;
-      case UserType.crc:
-        navigateToScreen(AppScreen.crcLogin);
-        break;
+  Future<void> login(String udiseCode, String employeeId, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.loginEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'udise_code': udiseCode,
+          'password': password,
+        }),
+      );
+
+      final data = json.decode(response.body);
+      
+      if (response.statusCode == 200) {
+        _udiseCode = udiseCode;
+        _isLoggedIn = true;
+        _userType = UserType.teacher;
+        _loggedInUser = (data['schoolName'] as String?) ?? 'Unknown School';
+        navigateToScreen(AppScreen.teacherHome);
+        notifyListeners();
+      } else {
+        throw Exception(data['message'] ?? 'Login failed');
+      }
+    } catch (e) {
+      print('Login error: $e');
+      rethrow;
     }
   }
 
@@ -122,14 +141,15 @@ class AppStateProvider extends ChangeNotifier {
     _userType = null;
     _loggedInUser = null;
     _udiseCode = null; // Clear UDISE code on logout
+    _employeeId = null;
     _navigationStack.clear();
-    _navigationStack.add(AppScreen.userTypeSelection);
-    navigateToScreen(AppScreen.userTypeSelection);
+    _navigationStack.add(AppScreen.schoolLogin);
+    navigateToScreen(AppScreen.schoolLogin);
   }
 
   // Back navigation methods
-  void goBackToUserSelection() {
-    navigateToScreen(AppScreen.userTypeSelection);
+  void goBackToLogin() {
+    navigateToScreen(AppScreen.schoolLogin);
   }
 
   void goBackToHome() {
@@ -138,7 +158,7 @@ class AppStateProvider extends ChangeNotifier {
     } else if (_userType == UserType.crc) {
       navigateToScreen(AppScreen.crcHome);
     } else {
-      navigateToScreen(AppScreen.userTypeSelection);
+      navigateToScreen(AppScreen.schoolLogin);
     }
   }
 }

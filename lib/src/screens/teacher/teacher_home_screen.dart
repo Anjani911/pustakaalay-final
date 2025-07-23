@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/app_state_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/teacher_service.dart';
+
+enum ActionType {
+  studentRegistration,
+  studentDetails,
+  teacherDetails,
+}
 
 class TeacherHomeScreen extends StatefulWidget {
   const TeacherHomeScreen({super.key});
@@ -63,18 +71,28 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     
     final quickActions = [
       {
-        'id': AppScreen.photoUpload,
+        'id': ActionType.studentRegistration,
         'title': 'छात्र रजिस्ट्रेशन',
         'subtitle': 'नए छात्र का पंजीकरण करें',
         'icon': Icons.person_add,
         'color': AppTheme.green,
+        'screen': AppScreen.photoUpload,
       },
       {
-        'id': AppScreen.studentsData,
+        'id': ActionType.studentDetails,
         'title': 'छात्र विवरण',
         'subtitle': 'छात्रों की जानकारी देखें',
         'icon': Icons.people,
         'color': AppTheme.blue,
+        'screen': AppScreen.studentsData,
+      },
+      {
+        'id': ActionType.teacherDetails,
+        'title': 'शिक्षक',
+        'subtitle': 'शिक्षक विवरण देखें',
+        'icon': Icons.school,
+        'color': AppTheme.primaryGreen,
+        'screen': null,
       },
     ];
 
@@ -170,14 +188,81 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                       itemCount: quickActions.length,
                       itemBuilder: (context, index) {
                         final action = quickActions[index];
-                        return _buildActionCard(
-                          context,
-                          appState,
-                          action['title'] as String,
-                          action['subtitle'] as String,
-                          action['icon'] as IconData,
-                          action['color'] as Color,
-                          action['id'] as AppScreen,
+                        return Card(
+                          elevation: 6,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              final actionType = action['id'] as ActionType;
+                              if (actionType == ActionType.teacherDetails) {
+                                _showTeacherDetails(context);
+                              } else {
+                                final screen = action['screen'] as AppScreen;
+                                appState.navigateToScreen(screen);
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    (action['color'] as Color).withOpacity(0.1),
+                                    (action['color'] as Color).withOpacity(0.05),
+                                  ],
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: action['color'] as Color,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      action['icon'] as IconData,
+                                      color: AppTheme.white,
+                                      size: 32,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Flexible(
+                                    child: Text(
+                                      action['title'] as String,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.darkGray,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Flexible(
+                                    child: Text(
+                                      action['subtitle'] as String,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.darkGray.withOpacity(0.7),
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -276,92 +361,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     );
   }
 
-  Widget _buildActionCard(
-    BuildContext context,
-    AppStateProvider appState,
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-    AppScreen screen,
-  ) {
-    return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        onTap: () {
-          if (screen == AppScreen.photoUpload) {
-            // Photo upload is implemented, navigate normally
-            appState.navigateToScreen(screen);
-          } else {
-            // Other features are now implemented too!
-            appState.navigateToScreen(screen);
-          }
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                color.withOpacity(0.1),
-                color.withOpacity(0.05),
-              ],
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: AppTheme.white,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.darkGray,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Flexible(
-                child: Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.darkGray.withOpacity(0.7),
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildProgressItem(String title, String count, IconData icon, Color color) {
     return Column(
@@ -400,6 +400,188 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _showTeacherDetails(BuildContext context) async {
+    try {
+      final appState = Provider.of<AppStateProvider>(context, listen: false);
+      final result = await TeacherService.getTeacherDetails(appState.udiseCode ?? "");
+      
+      if (result['success'] == true && mounted) {
+        final teacherData = Map<String, dynamic>.from(result['data'] as Map);
+        _showTeacherDetailsDialog(context, teacherData);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text((result['message'] as String?) ?? 'शिक्षक विवरण प्राप्त करने में त्रुटि'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('त्रुटि: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showTeacherDetailsDialog(BuildContext context, Map<String, dynamic> teacherData) {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // प्रदर्शन विवरण Card
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'प्रदर्शन विवरण',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.darkGray,
+                            ),
+                          ),
+                          const Divider(),
+                          _buildInfoRow('नाम', (teacherData['name'] as String?) ?? 'Not Available'),
+                          _buildInfoRow('विद्यालय', (teacherData['school_name'] as String?) ?? 'Not Available'),
+                          _buildInfoRow('पंजीकृत छात्र', '${(teacherData['registered_students'] as int?) ?? 0}'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // संपर्क विवरण Card
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'संपर्क विवरण',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.darkGray,
+                            ),
+                          ),
+                          const Divider(),
+                          _buildInfoRow('नाम', (teacherData['name'] as String?) ?? 'Not Available'),
+                          _buildInfoRow('मोबाइल नंबर', (teacherData['mobile'] as String?) ?? 'Not Available'),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () => _makePhoneCall(teacherData['mobile'] as String?),
+                                icon: const Icon(Icons.phone),
+                                label: const Text('कॉल करें'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.green,
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () => _sendSMS(teacherData['mobile'] as String?),
+                                icon: const Icon(Icons.message),
+                                label: const Text('SMS'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.blue,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('बंद करें'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkGray,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppTheme.darkGray,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _makePhoneCall(String? phoneNumber) async {
+    if (phoneNumber == null || phoneNumber.isEmpty) return;
+    
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    }
+  }
+
+  Future<void> _sendSMS(String? phoneNumber) async {
+    if (phoneNumber == null || phoneNumber.isEmpty) return;
+    
+    final Uri launchUri = Uri(
+      scheme: 'sms',
+      path: phoneNumber,
+    );
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    }
   }
 
   void _showLogoutDialog(BuildContext context, AppStateProvider appState) {

@@ -6,9 +6,8 @@ import '../providers/app_state_provider.dart';
 import '../screens/splash_screen.dart';
 
 // === AUTHENTICATION SCREENS ===
-import '../screens/auth/user_type_selection_screen.dart';
+import '../screens/auth/school_login_screen.dart';
 import '../screens/auth/teacher_login_screen.dart';
-import '../screens/auth/crc_login_screen.dart';
 
 // === TEACHER SCREENS ===
 import '../screens/teacher/teacher_home_screen.dart';
@@ -63,14 +62,8 @@ class AppNavigator extends StatelessWidget {
         return const SplashScreen();
       
       // === AUTHENTICATION SECTION ===
-      case AppScreen.userTypeSelection:
-        return const UserTypeSelectionScreen();
-      
-      case AppScreen.teacherLogin:
-        return const TeacherLoginScreen();
-      
-      case AppScreen.crcLogin:
-        return const CRCLoginScreen();
+      case AppScreen.schoolLogin:
+        return const SchoolLoginScreen();
       
       // === TEACHER SECTION ===
       case AppScreen.teacherHome:

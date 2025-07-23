@@ -52,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         final appState = Provider.of<AppStateProvider>(context, listen: false);
-        appState.navigateToScreen(AppScreen.userTypeSelection);
+        appState.navigateToScreen(AppScreen.schoolLogin);
       }
     });
   }
