@@ -23,11 +23,62 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   Map<String, dynamic>? _dashboardData;
   bool _isLoading = true;
   String _errorMessage = '';
+  bool _hasPhotoUpdatesNeeded = false;
 
   @override
   void initState() {
     super.initState();
     _fetchDashboardData();
+    _checkForPhotoUpdates(); // Check for pending photo updates
+  }
+
+  Future<void> _checkForPhotoUpdates() async {
+    final hasUpdates = await _hasStudentsWithPendingPhotos();
+    setState(() {
+      _hasPhotoUpdatesNeeded = hasUpdates;
+    });
+  }
+
+  Future<bool> _hasStudentsWithPendingPhotos() async {
+    try {
+      final appState = Provider.of<AppStateProvider>(context, listen: false);
+      final udiseCode = appState.udiseCode ?? "22010100101";
+
+      final result = await ApiService.getStudentsByUdise(udiseCode);
+
+      if (result['success'] == true && result['data'] != null) {
+        final responseData = result['data'];
+        if (responseData['status'] == true && responseData['data'] != null) {
+          final studentsList = responseData['data'] as List;
+
+          // Check if any student needs photo update (7+ days)
+          for (var student in studentsList) {
+            if (_isStudentPhotoUpdateRequired(
+                student as Map<String, dynamic>)) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  bool _isStudentPhotoUpdateRequired(Map<String, dynamic> student) {
+    try {
+      final dateTimeString = student['date_time']?.toString();
+      if (dateTimeString == null || dateTimeString.isEmpty) return false;
+
+      final registrationDate = DateTime.parse(dateTimeString);
+      final currentDate = DateTime.now();
+      final daysDifference = currentDate.difference(registrationDate).inDays;
+
+      return daysDifference >= 7;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> _fetchDashboardData() async {
@@ -86,6 +137,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         'icon': Icons.people,
         'color': AppTheme.blue,
         'screen': AppScreen.studentsData,
+        'hasAlert': _hasPhotoUpdatesNeeded, // Add alert flag
       },
       {
         'id': ActionType.teacherDetails,
@@ -236,13 +288,47 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            action['title'] as String,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.darkGray,
-                                            ),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  action['title'] as String,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppTheme.darkGray,
+                                                  ),
+                                                ),
+                                              ),
+                                              // RED ALERT ICON for students data card
+                                              if (action['hasAlert'] ==
+                                                  true) ...[
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.all(4),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.red
+                                                            .withOpacity(0.3),
+                                                        blurRadius: 4,
+                                                        offset:
+                                                            const Offset(0, 2),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.camera_alt,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
@@ -253,6 +339,18 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                                                   .withOpacity(0.7),
                                             ),
                                           ),
+                                          // Warning text for students data card
+                                          if (action['hasAlert'] == true) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '⚠️ कुछ छात्रों की नई फोटो चाहिए',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
