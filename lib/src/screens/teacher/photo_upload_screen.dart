@@ -23,6 +23,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   final _classController = TextEditingController();
   final _plantNameController = TextEditingController();
   final _mobileController = TextEditingController();
+  final _employeeIdController = TextEditingController();
   bool _isUploading = false;
 
   @override
@@ -32,6 +33,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
     _classController.dispose();
     _plantNameController.dispose();
     _mobileController.dispose();
+    _employeeIdController.dispose();
     super.dispose();
   }
 
@@ -77,6 +79,9 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           plantImage: _childPlantImage!,
           certificateImage: _certificateImage!,
           udiseCode: udiseCode,
+          employeeId: _employeeIdController.text.trim().isNotEmpty 
+              ? _employeeIdController.text.trim() 
+              : null,
         );
 
         if (!mounted) return;
@@ -102,6 +107,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           _classController.clear();
           _plantNameController.clear();
           _mobileController.clear();
+          _employeeIdController.clear();
         } else {
           // Registration failed
           String errorMessage = 'पंजीकरण असफल';
@@ -442,6 +448,23 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                             }
                             if (value.length != 10) {
                               return 'मोबाइल नंबर 10 अंकों का होना चाहिए';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: _employeeIdController,
+                          decoration: const InputDecoration(
+                            labelText: 'कर्मचारी ID',
+                            hintText: 'कर्मचारी की ID दर्ज करें',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.badge),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'कृपया Employee ID दर्ज करें';
                             }
                             return null;
                           },

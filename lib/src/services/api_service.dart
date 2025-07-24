@@ -189,6 +189,7 @@ class ApiService {
     required File plantImage,
     required File certificateImage,
     required String udiseCode,
+    String? employeeId,
   }) async {
     try {
       // Create multipart request
@@ -203,6 +204,11 @@ class ApiService {
         'name_of_tree': nameOfTree,
         'udise_code': udiseCode,
       });
+      
+      // Add employee ID if provided
+      if (employeeId != null && employeeId.isNotEmpty) {
+        request.fields['employee_id'] = employeeId;
+      }
       
       // Add image files
       request.files.add(await http.MultipartFile.fromPath(
