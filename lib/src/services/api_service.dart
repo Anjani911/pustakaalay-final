@@ -292,6 +292,80 @@ class ApiService {
     }
   }
 
+  // Update student photo method
+  static Future<Map<String, dynamic>> updateStudentPhoto({
+    required String studentId,
+    required File photoFile,
+  }) async {
+    try {
+      final url = '$baseUrl/update_student_photo';
+      
+      // Create multipart request
+      var request = http.MultipartRequest('POST', Uri.parse(url));
+      
+      // Add form fields
+      request.fields.addAll({
+        'student_id': studentId,
+      });
+      
+      // Add image file
+      request.files.add(await http.MultipartFile.fromPath(
+        'photo',
+        photoFile.path,
+      ));
+      
+      print('Update Student Photo Request Fields: ${request.fields}');
+      print('Update Student Photo Request Files: ${request.files.map((f) => f.field)}');
+      print('URL: $url');
+      
+      // Send the request
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      print('Response Status: ${response.statusCode}');
+      print('Response Headers: ${response.headers}');
+      print('Response Body: ${response.body}');
+      
+      // Check if response is JSON
+      if (response.headers['content-type']?.contains('application/json') != true) {
+        print('Warning: Response is not JSON format');
+        return {
+          'success': false,
+          'statusCode': response.statusCode,
+          'data': {'message': 'Server returned non-JSON response: ${response.body}'},
+        };
+      }
+      
+      // Parse JSON response
+      final responseData = jsonDecode(response.body);
+      
+      return {
+        'success': response.statusCode == 200,
+        'statusCode': response.statusCode,
+        'data': responseData,
+      };
+    } catch (e) {
+      print('Update Student Photo Error: $e');
+      print('Error Type: ${e.runtimeType}');
+
+      // Handle different types of errors
+      String errorMessage;
+      if (e is FormatException) {
+        errorMessage = 'Server response format error. Please check server configuration.';
+      } else if (e.toString().contains('SocketException')) {
+        errorMessage = 'Network connection error. Please check your internet connection.';
+      } else {
+        errorMessage = 'Network error occurred: $e';
+      }
+
+      return {
+        'success': false,
+        'statusCode': 0,
+        'data': {'message': errorMessage},
+      };
+    }
+  }
+
   // Get students by UDISE code
   static Future<Map<String, dynamic>> getStudentsByUdise(
       String udiseCode) async {

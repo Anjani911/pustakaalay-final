@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../providers/app_state_provider.dart';
 import '../../services/api_service.dart';
 
@@ -14,6 +16,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   List<Map<String, dynamic>> _allStudents = [];
   List<Map<String, dynamic>> _filteredStudents = [];
   final TextEditingController _searchController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
   bool _isLoading = true;
   String _errorMessage = '';
   Set<int> _expandedIndices = {}; // Track which cards are expanded
@@ -40,18 +43,54 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   // Photo update methods
   bool _isPhotoUpdateRequired(Map<String, dynamic> student) {
     try {
-      final dateTimeString = student['date_time']?.toString();
+      // Check if there's a last photo update date, otherwise use registration date
+      final lastPhotoUpdateString = student['last_photo_update']?.toString();
+      final dateTimeString = lastPhotoUpdateString ?? student['date_time']?.toString();
+      
       if (dateTimeString == null || dateTimeString.isEmpty) return false;
 
-      final registrationDate = DateTime.parse(dateTimeString);
+      final lastUpdateDate = DateTime.parse(dateTimeString);
       final currentDate = DateTime.now();
-      final daysDifference = currentDate.difference(registrationDate).inDays;
+      final daysDifference = currentDate.difference(lastUpdateDate).inDays;
 
-      // Show red icon only after 7+ days
+      // Show red icon only after 7+ days since last photo update
       return daysDifference >= 7;
     } catch (e) {
       print('Error calculating photo update requirement: $e');
       return false;
+    }
+  }
+
+  bool _isPhotoUpdateLocked(Map<String, dynamic> student) {
+    try {
+      final lastPhotoUpdateString = student['last_photo_update']?.toString();
+      if (lastPhotoUpdateString == null || lastPhotoUpdateString.isEmpty) return false;
+
+      final lastUpdateDate = DateTime.parse(lastPhotoUpdateString);
+      final currentDate = DateTime.now();
+      final daysDifference = currentDate.difference(lastUpdateDate).inDays;
+
+      // Lock photo update for 7 days after last update
+      return daysDifference < 7;
+    } catch (e) {
+      print('Error calculating photo update lock: $e');
+      return false;
+    }
+  }
+
+  int _getDaysSinceLastPhotoUpdate(Map<String, dynamic> student) {
+    try {
+      final lastPhotoUpdateString = student['last_photo_update']?.toString();
+      final dateTimeString = lastPhotoUpdateString ?? student['date_time']?.toString();
+      
+      if (dateTimeString == null || dateTimeString.isEmpty) return 0;
+
+      final lastUpdateDate = DateTime.parse(dateTimeString);
+      final currentDate = DateTime.now();
+      return currentDate.difference(lastUpdateDate).inDays;
+    } catch (e) {
+      print('Error calculating days since last photo update: $e');
+      return 0;
     }
   }
 
@@ -70,6 +109,10 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   }
 
   void _showPhotoUpdateDialog(Map<String, dynamic> student) {
+    final isLocked = _isPhotoUpdateLocked(student);
+    final daysSinceLastUpdate = _getDaysSinceLastPhotoUpdate(student);
+    final daysUntilUnlock = isLocked ? (7 - daysSinceLastUpdate) : 0;
+
     showDialog<void>(
       context: context,
       builder: (BuildContext context) {
@@ -81,10 +124,35 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
             children: [
               Text('छात्र ID: ${student['student_id']}'),
               const SizedBox(height: 8),
-              Text(
-                  'पंजीकरण के बाद से दिन: ${_getDaysSinceRegistration(student)}'),
-              const SizedBox(height: 16),
-              const Text('फोटो अपडेट आवश्यक (पंजीकरण के 7+ दिन बाद)'),
+              if (isLocked) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.lock, color: Colors.orange, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'फोटो अपडेट $daysUntilUnlock दिन बाद उपलब्ध होगा',
+                          style: const TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                Text('अंतिम फोटो अपडेट के बाद से दिन: $daysSinceLastUpdate'),
+                const SizedBox(height: 16),
+                const Text('फोटो अपडेट करना आवश्यक है'),
+              ],
             ],
           ),
           actions: [
@@ -92,24 +160,125 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('रद्द करें'),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // Here you would implement photo selection/camera functionality
-                // For now, just show a message
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('फोटो अपडेट सुविधा यहाँ लागू की जाएगी'),
-                    backgroundColor: Colors.blue,
-                  ),
-                );
-              },
-              child: const Text('फोटो अपडेट करें'),
-            ),
+            if (!isLocked) ...[
+              ElevatedButton.icon(
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('कैमरा'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _pickAndUploadPhoto(student, ImageSource.camera);
+                },
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.photo_library),
+                label: const Text('गैलरी'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _pickAndUploadPhoto(student, ImageSource.gallery);
+                },
+              ),
+            ],
           ],
         );
       },
     );
+  }
+
+  Future<void> _pickAndUploadPhoto(Map<String, dynamic> student, ImageSource source) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        await _uploadStudentPhoto(student, File(image.path));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('फोटो सेलेक्ट करने में त्रुटि: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _uploadStudentPhoto(Map<String, dynamic> student, File imageFile) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('फोटो अपलोड हो रही है...'),
+            ],
+          ),
+        );
+      },
+    );
+
+    try {
+      // Call API to update student photo
+      final result = await ApiService.updateStudentPhoto(
+        studentId: student['student_id'].toString(),
+        photoFile: imageFile,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      if (result['success'] == true) {
+        // Update the student data locally
+        final studentIndex = _allStudents.indexWhere(
+          (s) => s['student_id'] == student['student_id'],
+        );
+        
+        if (studentIndex != -1) {
+          setState(() {
+            _allStudents[studentIndex]['last_photo_update'] = DateTime.now().toIso8601String();
+            _studentsNeedingPhotoUpdate = _allStudents.where(_isPhotoUpdateRequired).length;
+          });
+          _filterStudents(_searchController.text);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('फोटो सफलतापूर्वक अपडेट हो गई!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        String errorMessage = 'फोटो अपडेट असफल';
+        final data = result['data'];
+        if (data != null && data['message'] != null) {
+          errorMessage = data['message'].toString();
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('नेटवर्क एरर: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _showPhotoUpdateSummary() {
@@ -421,8 +590,9 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                   _expandedIndices.contains(index);
                               final needsPhotoUpdate =
                                   _isPhotoUpdateRequired(student);
-                              final daysSinceRegistration =
-                                  _getDaysSinceRegistration(student);
+                              final isPhotoLocked = _isPhotoUpdateLocked(student);
+                              final daysSinceLastUpdate =
+                                  _getDaysSinceLastPhotoUpdate(student);
 
                               return Card(
                                 margin: const EdgeInsets.only(bottom: 12),
@@ -491,9 +661,11 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                               'कक्षा: ${student['class_name']?.toString() ?? 'N/A'}'),
                                           if (needsPhotoUpdate)
                                             Text(
-                                              'फोटो अपडेट आवश्यक ($daysSinceRegistration दिन)',
-                                              style: const TextStyle(
-                                                color: Colors.red,
+                                              isPhotoLocked
+                                                  ? 'फोटो अपडेट लॉक है (${7 - daysSinceLastUpdate} दिन बाकी)'
+                                                  : 'फोटो अपडेट आवश्यक ($daysSinceLastUpdate दिन)',
+                                              style: TextStyle(
+                                                color: isPhotoLocked ? Colors.orange : Colors.red,
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
@@ -504,12 +676,16 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                         children: [
                                           if (needsPhotoUpdate)
                                             IconButton(
-                                              icon: const Icon(Icons.camera_alt,
-                                                  color: Colors.red),
-                                              onPressed: () =>
-                                                  _showPhotoUpdateDialog(
-                                                      student),
-                                              tooltip: 'फोटो अपडेट करें',
+                                              icon: Icon(
+                                                isPhotoLocked ? Icons.lock : Icons.camera_alt,
+                                                color: isPhotoLocked ? Colors.orange : Colors.red,
+                                              ),
+                                              onPressed: isPhotoLocked 
+                                                  ? null 
+                                                  : () => _showPhotoUpdateDialog(student),
+                                              tooltip: isPhotoLocked 
+                                                  ? 'फोटो अपडेट लॉक है' 
+                                                  : 'फोटो अपडेट करें',
                                             ),
                                           Icon(
                                             isExpanded
@@ -577,20 +753,23 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                                     const SizedBox(width: 8),
                                                     Expanded(
                                                       child: Text(
-                                                        'फोटो अपडेट आवश्यक - पंजीकरण के $daysSinceRegistration दिन बाद',
-                                                        style: const TextStyle(
-                                                          color: Colors.red,
+                                                        isPhotoLocked
+                                                            ? 'फोटो अपडेट लॉक है - ${7 - daysSinceLastUpdate} दिन बाकी'
+                                                            : 'फोटो अपडेट आवश्यक - अंतिम अपडेट के $daysSinceLastUpdate दिन बाद',
+                                                        style: TextStyle(
+                                                          color: isPhotoLocked ? Colors.orange : Colors.red,
                                                           fontWeight:
                                                               FontWeight.w500,
                                                         ),
                                                       ),
                                                     ),
                                                     TextButton(
-                                                      onPressed: () =>
-                                                          _showPhotoUpdateDialog(
-                                                              student),
-                                                      child: const Text(
-                                                          'अपडेट करें'),
+                                                      onPressed: isPhotoLocked 
+                                                          ? null 
+                                                          : () => _showPhotoUpdateDialog(student),
+                                                      child: Text(
+                                                        isPhotoLocked ? 'लॉक है' : 'अपडेट करें',
+                                                      ),
                                                     ),
                                                   ],
                                                 ),
