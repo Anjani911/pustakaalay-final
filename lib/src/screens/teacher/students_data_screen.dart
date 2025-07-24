@@ -44,30 +44,55 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
     try {
       // Get UDISE code from app state
       final appState = Provider.of<AppStateProvider>(context, listen: false);
-      final udiseCode = appState.udiseCode ?? "1234"; // Fallback to 1234 if not available
-      
+      final udiseCode = appState.udiseCode ??
+          "22010100101"; // Updated fallback to actual school UDISE
+
+      print('🔍 DEBUG: Fetching students for UDISE Code: $udiseCode');
+      print('🔍 DEBUG: App State UDISE: ${appState.udiseCode}');
+      print('🔍 DEBUG: Logged in user: ${appState.loggedInUser}');
+
       final result = await ApiService.getStudentsByUdise(udiseCode);
+
+      print('📡 DEBUG: Complete API Response: $result');
+      print('✅ DEBUG: API Success: ${result['success']}');
+      print('📄 DEBUG: API Data: ${result['data']}');
 
       if (result['success'] == true && result['data'] != null) {
         setState(() {
           // Handle the API response format: {"status": true, "data": [...], "message": "..."}
           final responseData = result['data'];
+          print('🗂️ DEBUG: Response Data Type: ${responseData.runtimeType}');
+          print('🗂️ DEBUG: Response Data Content: $responseData');
+
           if (responseData['status'] == true && responseData['data'] != null) {
-            _allStudents = List<Map<String, dynamic>>.from(
-              (responseData['data'] as List).map((item) => Map<String, dynamic>.from(item as Map))
-            );
+            final studentsList = responseData['data'] as List;
+            print('👥 DEBUG: Students Found: ${studentsList.length}');
+            print(
+                '👥 DEBUG: First Student Sample: ${studentsList.isNotEmpty ? studentsList[0] : 'No students'}');
+
+            _allStudents = List<Map<String, dynamic>>.from(studentsList
+                .map((item) => Map<String, dynamic>.from(item as Map)));
             _filteredStudents = List<Map<String, dynamic>>.from(_allStudents);
             _isLoading = false;
+
+            print(
+                '✅ DEBUG: Students loaded successfully: ${_allStudents.length} students');
           } else {
+            print(
+                '❌ DEBUG: No students data - Status: ${responseData['status']}, Message: ${responseData['message']}');
             _allStudents = [];
             _filteredStudents = [];
-            _errorMessage = responseData['message']?.toString() ?? 'इस UDISE कोड के लिए कोई छात्र डेटा नहीं मिला';
+            _errorMessage = responseData['message']?.toString() ??
+                'इस UDISE कोड के लिए कोई छात्र डेटा नहीं मिला';
             _isLoading = false;
           }
         });
       } else {
+        print(
+            '❌ DEBUG: API call failed - Success: ${result['success']}, Data: ${result['data']}');
         setState(() {
-          _errorMessage = result['data']?['message']?.toString() ?? 'इस UDISE कोड के लिए कोई छात्र डेटा नहीं मिला';
+          _errorMessage = result['data']?['message']?.toString() ??
+              'इस UDISE कोड के लिए कोई छात्र डेटा नहीं मिला';
           _isLoading = false;
         });
       }
@@ -91,10 +116,11 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
 
   String _formatDate(String? dateTimeString) {
     if (dateTimeString == null || dateTimeString.isEmpty) return 'N/A';
-    
+
     try {
       // Parse the date string and format it in a readable way
-      DateTime dateTime = DateTime.parse(dateTimeString.replaceAll('GMT', '').trim());
+      DateTime dateTime =
+          DateTime.parse(dateTimeString.replaceAll('GMT', '').trim());
       return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
     } catch (e) {
       return dateTimeString; // Return original string if parsing fails
@@ -133,9 +159,9 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
       // Extract filename from path
       String imagePath = student['plant_image']?.toString() ?? '';
       String filename = imagePath.split('/').last;
-      
+
       final result = await ApiService.downloadImage(filename);
-      
+
       if (result['success'] == true) {
         // Get Downloads directory
         Directory? downloadsDirectory;
@@ -144,18 +170,20 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
         } else {
           downloadsDirectory = await getDownloadsDirectory();
         }
-        
+
         if (downloadsDirectory != null && await downloadsDirectory.exists()) {
           // Create unique filename with student name
-          String studentName = student['name']?.toString().replaceAll(' ', '_') ?? 'student';
+          String studentName =
+              student['name']?.toString().replaceAll(' ', '_') ?? 'student';
           String uniqueFilename = '${studentName}_plant_photo_$filename';
           final file = File('${downloadsDirectory.path}/$uniqueFilename');
           await file.writeAsBytes(result['data'] as Uint8List);
-          
+
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${student['name']} की पौधे की फोटो Downloads फोल्डर में सेव हो गई'),
+              content: Text(
+                  '${student['name']} की पौधे की फोटो Downloads फोल्डर में सेव हो गई'),
               backgroundColor: AppTheme.green,
               duration: const Duration(seconds: 3),
             ),
@@ -163,15 +191,17 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
         } else {
           // Fallback to documents directory
           final directory = await getApplicationDocumentsDirectory();
-          String studentName = student['name']?.toString().replaceAll(' ', '_') ?? 'student';
+          String studentName =
+              student['name']?.toString().replaceAll(' ', '_') ?? 'student';
           String uniqueFilename = '${studentName}_plant_photo_$filename';
           final file = File('${directory.path}/$uniqueFilename');
           await file.writeAsBytes(result['data'] as Uint8List);
-          
+
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${student['name']} की पौधे की फोटो App फोल्डर में सेव हो गई'),
+              content: Text(
+                  '${student['name']} की पौधे की फोटो App फोल्डर में सेव हो गई'),
               backgroundColor: AppTheme.green,
               duration: const Duration(seconds: 3),
             ),
@@ -202,9 +232,9 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
       // Extract filename from path
       String imagePath = student['certificate']?.toString() ?? '';
       String filename = imagePath.split('/').last;
-      
+
       final result = await ApiService.downloadImage(filename);
-      
+
       if (result['success'] == true) {
         // Get Downloads directory
         Directory? downloadsDirectory;
@@ -213,18 +243,20 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
         } else {
           downloadsDirectory = await getDownloadsDirectory();
         }
-        
+
         if (downloadsDirectory != null && await downloadsDirectory.exists()) {
           // Create unique filename with student name
-          String studentName = student['name']?.toString().replaceAll(' ', '_') ?? 'student';
+          String studentName =
+              student['name']?.toString().replaceAll(' ', '_') ?? 'student';
           String uniqueFilename = '${studentName}_certificate_$filename';
           final file = File('${downloadsDirectory.path}/$uniqueFilename');
           await file.writeAsBytes(result['data'] as Uint8List);
-          
+
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${student['name']} का सर्टिफिकेट Downloads फोल्डर में सेव हो गया'),
+              content: Text(
+                  '${student['name']} का सर्टिफिकेट Downloads फोल्डर में सेव हो गया'),
               backgroundColor: AppTheme.blue,
               duration: const Duration(seconds: 3),
             ),
@@ -232,15 +264,17 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
         } else {
           // Fallback to documents directory
           final directory = await getApplicationDocumentsDirectory();
-          String studentName = student['name']?.toString().replaceAll(' ', '_') ?? 'student';
+          String studentName =
+              student['name']?.toString().replaceAll(' ', '_') ?? 'student';
           String uniqueFilename = '${studentName}_certificate_$filename';
           final file = File('${directory.path}/$uniqueFilename');
           await file.writeAsBytes(result['data'] as Uint8List);
-          
+
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${student['name']} का सर्टिफिकेट App फोल्डर में सेव हो गया'),
+              content: Text(
+                  '${student['name']} का सर्टिफिकेट App फोल्डर में सेव हो गया'),
               backgroundColor: AppTheme.blue,
               duration: const Duration(seconds: 3),
             ),
@@ -269,11 +303,11 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   void _viewImage(Map<String, dynamic> student, String imageType) async {
     try {
       // Extract filename from path
-      String imagePath = imageType == 'plant' 
+      String imagePath = imageType == 'plant'
           ? student['plant_image']?.toString() ?? ''
           : student['certificate']?.toString() ?? '';
       String filename = imagePath.split('/').last;
-      
+
       // Show loading dialog
       showDialog<void>(
         context: context,
@@ -282,20 +316,16 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
           child: CircularProgressIndicator(),
         ),
       );
-      
+
       final result = await ApiService.getImageByFilename(filename);
-      
+
       // Close loading dialog
       if (mounted) Navigator.of(context).pop();
-      
+
       if (result['success'] == true) {
         // Show image in dialog
-        _showImageDialog(
-          student, 
-          result['data'] as Uint8List, 
-          imageType == 'plant' ? 'पौधे की फोटो' : 'सर्टिफिकेट',
-          filename
-        );
+        _showImageDialog(student, result['data'] as Uint8List,
+            imageType == 'plant' ? 'पौधे की फोटो' : 'सर्टिफिकेट', filename);
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -308,7 +338,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
     } catch (e) {
       // Close loading dialog if open
       if (mounted) Navigator.of(context).pop();
-      
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -319,7 +349,8 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
     }
   }
 
-  void _showImageDialog(Map<String, dynamic> student, Uint8List imageBytes, String title, String filename) {
+  void _showImageDialog(Map<String, dynamic> student, Uint8List imageBytes,
+      String title, String filename) {
     showDialog<void>(
       context: context,
       builder: (BuildContext context) {
@@ -373,7 +404,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                     ],
                   ),
                 ),
-                
+
                 // Image
                 Flexible(
                   child: Container(
@@ -384,7 +415,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                     ),
                   ),
                 ),
-                
+
                 // Download button
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -465,7 +496,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
               ),
             ),
           ),
-          
+
           // Content area
           Expanded(
             child: _isLoading
@@ -520,7 +551,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  _allStudents.isEmpty 
+                                  _allStudents.isEmpty
                                       ? 'कोई छात्र डेटा नहीं मिला'
                                       : 'खोज के अनुकूल कोई छात्र नहीं मिला',
                                   style: TextStyle(
@@ -546,8 +577,9 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                             itemCount: _filteredStudents.length,
                             itemBuilder: (context, index) {
                               final student = _filteredStudents[index];
-                              final isExpanded = _expandedIndices.contains(index);
-                              
+                              final isExpanded =
+                                  _expandedIndices.contains(index);
+
                               return Card(
                                 margin: const EdgeInsets.only(bottom: 12),
                                 elevation: 3,
@@ -573,10 +605,13 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                         child: Row(
                                           children: [
                                             CircleAvatar(
-                                              backgroundColor: AppTheme.primaryGreen,
+                                              backgroundColor:
+                                                  AppTheme.primaryGreen,
                                               radius: 25,
                                               child: Text(
-                                                (student['name']?.toString() ?? 'N')[0].toUpperCase(),
+                                                (student['name']?.toString() ??
+                                                        'N')[0]
+                                                    .toUpperCase(),
                                                 style: const TextStyle(
                                                   color: Colors.white,
                                                   fontWeight: FontWeight.bold,
@@ -587,7 +622,8 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                             const SizedBox(width: 16),
                                             Expanded(
                                               child: Text(
-                                                student['name']?.toString() ?? 'अज्ञात',
+                                                student['name']?.toString() ??
+                                                    'अज्ञात',
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 16,
@@ -595,8 +631,8 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                               ),
                                             ),
                                             Icon(
-                                              isExpanded 
-                                                  ? Icons.keyboard_arrow_up 
+                                              isExpanded
+                                                  ? Icons.keyboard_arrow_up
                                                   : Icons.keyboard_arrow_down,
                                               color: Colors.grey,
                                             ),
@@ -604,23 +640,32 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                         ),
                                       ),
                                     ),
-                                    
+
                                     // Expanded content - only visible when expanded
                                     if (isExpanded) ...[
                                       const Divider(height: 1),
                                       Padding(
                                         padding: const EdgeInsets.all(16),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            _buildDetailRow('स्कूल', student['school_name']),
-                                            _buildDetailRow('कक्षा', student['class']),
-                                            _buildDetailRow('मोबाइल', student['mobile']),
-                                            _buildDetailRow('पेड़ का नाम', student['name_of_tree']),
-                                            _buildDetailRow('UDISE कोड', student['udise_code']),
-                                            _buildDetailRow('पंजीकरण दिनांक', _formatDate(student['date_time']?.toString())),
+                                            _buildDetailRow('स्कूल',
+                                                student['school_name']),
+                                            _buildDetailRow(
+                                                'कक्षा', student['class']),
+                                            _buildDetailRow(
+                                                'मोबाइल', student['mobile']),
+                                            _buildDetailRow('पेड़ का नाम',
+                                                student['name_of_tree']),
+                                            _buildDetailRow('UDISE कोड',
+                                                student['udise_code']),
+                                            _buildDetailRow(
+                                                'पंजीकरण दिनांक',
+                                                _formatDate(student['date_time']
+                                                    ?.toString())),
                                             const SizedBox(height: 16),
-                                            
+
                                             // View buttons only
                                             Column(
                                               children: [
@@ -628,13 +673,22 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                                 SizedBox(
                                                   width: double.infinity,
                                                   child: ElevatedButton.icon(
-                                                    onPressed: () => _viewImage(student, 'plant'),
-                                                    icon: const Icon(Icons.visibility, size: 18),
-                                                    label: const Text('पौधे की फोटो देखें'),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: AppTheme.green,
-                                                      foregroundColor: Colors.white,
-                                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                                    onPressed: () => _viewImage(
+                                                        student, 'plant'),
+                                                    icon: const Icon(
+                                                        Icons.visibility,
+                                                        size: 18),
+                                                    label: const Text(
+                                                        'पौधे की फोटो देखें'),
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          AppTheme.green,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 12),
                                                     ),
                                                   ),
                                                 ),
@@ -643,13 +697,22 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                                 SizedBox(
                                                   width: double.infinity,
                                                   child: ElevatedButton.icon(
-                                                    onPressed: () => _viewImage(student, 'certificate'),
-                                                    icon: const Icon(Icons.visibility, size: 18),
-                                                    label: const Text('सर्टिफिकेट देखें'),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: AppTheme.blue,
-                                                      foregroundColor: Colors.white,
-                                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                                    onPressed: () => _viewImage(
+                                                        student, 'certificate'),
+                                                    icon: const Icon(
+                                                        Icons.visibility,
+                                                        size: 18),
+                                                    label: const Text(
+                                                        'सर्टिफिकेट देखें'),
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          AppTheme.blue,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 12),
                                                     ),
                                                   ),
                                                 ),

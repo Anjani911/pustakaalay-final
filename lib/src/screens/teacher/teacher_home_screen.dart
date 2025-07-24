@@ -39,9 +39,9 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     try {
       final appState = Provider.of<AppStateProvider>(context, listen: false);
       final udiseCode = appState.udiseCode ?? "1234";
-      
+
       final result = await ApiService.getTeacherDashboard(udiseCode);
-      
+
       if (result['success'] == true && result['data'] != null) {
         setState(() {
           _dashboardData = Map<String, dynamic>.from(result['data'] as Map);
@@ -49,7 +49,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         });
       } else {
         setState(() {
-          _errorMessage = result['data']?['message']?.toString() ?? 'डैशबोर्ड डेटा लोड नहीं हो सका';
+          _errorMessage = result['data']?['message']?.toString() ??
+              'डैशबोर्ड डेटा लोड नहीं हो सका';
           _isLoading = false;
         });
       }
@@ -64,11 +65,11 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppStateProvider>(context);
-    
+
     // Get student count from dashboard data, fallback to 0
     final studentCount = _dashboardData?['COUNT'] ?? 0;
     final photoUploads = studentCount * 2; // Twice the student count
-    
+
     final quickActions = [
       {
         'id': ActionType.studentRegistration,
@@ -92,7 +93,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         'subtitle': 'शिक्षक विवरण देखें',
         'icon': Icons.school,
         'color': AppTheme.primaryGreen,
-        'screen': null,
+        'screen': AppScreen.teachersList,
       },
     ];
 
@@ -159,7 +160,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                   ],
                 ),
               ),
-              
+
               // Quick actions grid
               Padding(
                 padding: const EdgeInsets.all(20),
@@ -175,100 +176,102 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.9,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                      ),
-                      itemCount: quickActions.length,
-                      itemBuilder: (context, index) {
-                        final action = quickActions[index];
-                        return Card(
-                          elevation: 6,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              final actionType = action['id'] as ActionType;
-                              if (actionType == ActionType.teacherDetails) {
-                                _showTeacherDetails(context);
-                              } else {
-                                final screen = action['screen'] as AppScreen;
-                                appState.navigateToScreen(screen);
-                              }
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    (action['color'] as Color).withOpacity(0.1),
-                                    (action['color'] as Color).withOpacity(0.05),
+
+                    // Vertical Cards Layout
+                    Column(
+                      children: quickActions.map((action) {
+                        return Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: Card(
+                            elevation: 6,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: InkWell(
+                              onTap: () {
+                                final actionType = action['id'] as ActionType;
+                                final screen = action['screen'] as AppScreen?;
+
+                                if (screen != null) {
+                                  appState.navigateToScreen(screen);
+                                } else if (actionType ==
+                                    ActionType.teacherDetails) {
+                                  _showTeacherDetails(context);
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                    colors: [
+                                      (action['color'] as Color)
+                                          .withOpacity(0.1),
+                                      (action['color'] as Color)
+                                          .withOpacity(0.05),
+                                    ],
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: action['color'] as Color,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        action['icon'] as IconData,
+                                        color: AppTheme.white,
+                                        size: 28,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            action['title'] as String,
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.darkGray,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            action['subtitle'] as String,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppTheme.darkGray
+                                                  .withOpacity(0.7),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: AppTheme.darkGray.withOpacity(0.5),
+                                      size: 16,
+                                    ),
                                   ],
                                 ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: action['color'] as Color,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      action['icon'] as IconData,
-                                      color: AppTheme.white,
-                                      size: 32,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Flexible(
-                                    child: Text(
-                                      action['title'] as String,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.darkGray,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Flexible(
-                                    child: Text(
-                                      action['subtitle'] as String,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: AppTheme.darkGray.withOpacity(0.7),
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
                               ),
                             ),
                           ),
                         );
-                      },
+                      }).toList(),
                     ),
-                    
+
                     const SizedBox(height: 30),
-                    
+
                     // Progress section
                     Card(
                       elevation: 4,
@@ -299,7 +302,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                               ],
                             ),
                             const SizedBox(height: 20),
-                            _isLoading 
+                            _isLoading
                                 ? const Center(
                                     child: CircularProgressIndicator(
                                       color: AppTheme.primaryGreen,
@@ -321,7 +324,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                                             TextButton.icon(
                                               onPressed: _fetchDashboardData,
                                               icon: const Icon(Icons.refresh),
-                                              label: const Text('पुनः प्रयास करें'),
+                                              label: const Text(
+                                                  'पुनः प्रयास करें'),
                                             ),
                                           ],
                                         ),
@@ -361,9 +365,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     );
   }
 
-
-
-  Widget _buildProgressItem(String title, String count, IconData icon, Color color) {
+  Widget _buildProgressItem(
+      String title, String count, IconData icon, Color color) {
     return Column(
       children: [
         Container(
@@ -405,8 +408,9 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   Future<void> _showTeacherDetails(BuildContext context) async {
     try {
       final appState = Provider.of<AppStateProvider>(context, listen: false);
-      final result = await TeacherService.getTeacherDetails(appState.udiseCode ?? "");
-      
+      final result =
+          await TeacherService.getTeacherDetails(appState.udiseCode ?? "");
+
       if (result['success'] == true && mounted) {
         final teacherData = Map<String, dynamic>.from(result['data'] as Map);
         _showTeacherDetailsDialog(context, teacherData);
@@ -414,7 +418,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text((result['message'] as String?) ?? 'शिक्षक विवरण प्राप्त करने में त्रुटि'),
+              content: Text((result['message'] as String?) ??
+                  'शिक्षक विवरण प्राप्त करने में त्रुटि'),
               backgroundColor: Colors.red,
             ),
           );
@@ -432,7 +437,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     }
   }
 
-  void _showTeacherDetailsDialog(BuildContext context, Map<String, dynamic> teacherData) {
+  void _showTeacherDetailsDialog(
+      BuildContext context, Map<String, dynamic> teacherData) {
     showDialog<void>(
       context: context,
       builder: (BuildContext context) {
@@ -466,9 +472,16 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                             ),
                           ),
                           const Divider(),
-                          _buildInfoRow('नाम', (teacherData['name'] as String?) ?? 'Not Available'),
-                          _buildInfoRow('विद्यालय', (teacherData['school_name'] as String?) ?? 'Not Available'),
-                          _buildInfoRow('पंजीकृत छात्र', '${(teacherData['registered_students'] as int?) ?? 0}'),
+                          _buildInfoRow(
+                              'नाम',
+                              (teacherData['name'] as String?) ??
+                                  'Not Available'),
+                          _buildInfoRow(
+                              'विद्यालय',
+                              (teacherData['school_name'] as String?) ??
+                                  'Not Available'),
+                          _buildInfoRow('पंजीकृत छात्र',
+                              '${(teacherData['registered_students'] as int?) ?? 0}'),
                         ],
                       ),
                     ),
@@ -494,14 +507,21 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                             ),
                           ),
                           const Divider(),
-                          _buildInfoRow('नाम', (teacherData['name'] as String?) ?? 'Not Available'),
-                          _buildInfoRow('मोबाइल नंबर', (teacherData['mobile'] as String?) ?? 'Not Available'),
+                          _buildInfoRow(
+                              'नाम',
+                              (teacherData['name'] as String?) ??
+                                  'Not Available'),
+                          _buildInfoRow(
+                              'मोबाइल नंबर',
+                              (teacherData['mobile'] as String?) ??
+                                  'Not Available'),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               ElevatedButton.icon(
-                                onPressed: () => _makePhoneCall(teacherData['mobile'] as String?),
+                                onPressed: () => _makePhoneCall(
+                                    teacherData['mobile'] as String?),
                                 icon: const Icon(Icons.phone),
                                 label: const Text('कॉल करें'),
                                 style: ElevatedButton.styleFrom(
@@ -509,7 +529,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                                 ),
                               ),
                               ElevatedButton.icon(
-                                onPressed: () => _sendSMS(teacherData['mobile'] as String?),
+                                onPressed: () =>
+                                    _sendSMS(teacherData['mobile'] as String?),
                                 icon: const Icon(Icons.message),
                                 label: const Text('SMS'),
                                 style: ElevatedButton.styleFrom(
@@ -562,7 +583,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
   Future<void> _makePhoneCall(String? phoneNumber) async {
     if (phoneNumber == null || phoneNumber.isEmpty) return;
-    
+
     final Uri launchUri = Uri(
       scheme: 'tel',
       path: phoneNumber,
@@ -574,7 +595,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
   Future<void> _sendSMS(String? phoneNumber) async {
     if (phoneNumber == null || phoneNumber.isEmpty) return;
-    
+
     final Uri launchUri = Uri(
       scheme: 'sms',
       path: phoneNumber,
