@@ -34,13 +34,13 @@ class _SchoolLoginScreenState extends State<SchoolLoginScreen> {
       try {
         final appState = Provider.of<AppStateProvider>(context, listen: false);
         await appState.login(
-            _udiseController.text, "", _passwordController.text);
+            _udiseController.text, '', _passwordController.text);
       } catch (e) {
         if (mounted) {
           String errorMessage = e.toString();
           // Remove the "Exception: " prefix if it exists
-          if (errorMessage.startsWith("Exception: ")) {
-            errorMessage = errorMessage.substring("Exception: ".length);
+          if (errorMessage.startsWith('Exception: ')) {
+            errorMessage = errorMessage.substring('Exception: '.length);
           }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

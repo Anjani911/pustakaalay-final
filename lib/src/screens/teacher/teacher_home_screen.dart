@@ -42,7 +42,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   Future<bool> _hasStudentsWithPendingPhotos() async {
     try {
       final appState = Provider.of<AppStateProvider>(context, listen: false);
-      final udiseCode = appState.udiseCode ?? "22010100101";
+      final udiseCode = appState.udiseCode ?? '22010100101';
 
       final result = await ApiService.getStudentsByUdise(udiseCode);
 
@@ -89,7 +89,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
     try {
       final appState = Provider.of<AppStateProvider>(context, listen: false);
-      final udiseCode = appState.udiseCode ?? "1234";
+      final udiseCode = appState.udiseCode ?? '1234';
 
       final result = await ApiService.getTeacherDashboard(udiseCode);
 
@@ -366,7 +366,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                                           // Warning text for students data card
                                           if (action['hasAlert'] == true) ...[
                                             const SizedBox(height: 4),
-                                            Text(
+                                            const Text(
                                               '⚠️ कुछ छात्रों की नई फोटो चाहिए',
                                               style: TextStyle(
                                                 fontSize: 11,
@@ -405,15 +405,15 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            const Row(
                               children: [
                                 Icon(
                                   Icons.trending_up,
                                   color: AppTheme.green,
                                   size: 28,
                                 ),
-                                const SizedBox(width: 12),
-                                const Text(
+                                SizedBox(width: 12),
+                                Text(
                                   'प्रगति',
                                   style: TextStyle(
                                     fontSize: 18,
@@ -457,7 +457,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                                           Expanded(
                                             child: _buildProgressItem(
                                               'फोटो अपलोड',
-                                              '${photoUploads}',
+                                              '$photoUploads',
                                               Icons.camera_alt,
                                               AppTheme.green,
                                             ),
@@ -466,7 +466,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                                           Expanded(
                                             child: _buildProgressItem(
                                               'छात्र रजिस्ट्रेशन',
-                                              '${studentCount}',
+                                              '$studentCount',
                                               Icons.person_add,
                                               AppTheme.blue,
                                             ),
@@ -531,7 +531,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     try {
       final appState = Provider.of<AppStateProvider>(context, listen: false);
       final result =
-          await TeacherService.getTeacherDetails(appState.udiseCode ?? "");
+          await TeacherService.getTeacherDetails(appState.udiseCode ?? '');
 
       if (result['success'] == true && mounted) {
         final teacherData = Map<String, dynamic>.from(result['data'] as Map);

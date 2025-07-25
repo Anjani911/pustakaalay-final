@@ -69,15 +69,15 @@ class _CertificateScreenState extends State<CertificateScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppTheme.purple.withOpacity(0.3)),
               ),
-              child: Column(
+              child: const Column(
                 children: [
                   Icon(
                     Icons.card_membership,
                     size: 60,
                     color: AppTheme.purple,
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
+                  SizedBox(height: 12),
+                  Text(
                     'हरिहर पाठशाला',
                     style: TextStyle(
                       fontSize: 24,
@@ -85,7 +85,7 @@ class _CertificateScreenState extends State<CertificateScreen> {
                       color: AppTheme.purple,
                     ),
                   ),
-                  const Text(
+                  Text(
                     'डिजिटल प्रमाणपत्र जेनरेटर',
                     style: TextStyle(
                       fontSize: 16,

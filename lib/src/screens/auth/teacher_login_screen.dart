@@ -404,17 +404,17 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
                           color: AppTheme.blue.withOpacity(0.3),
                         ),
                       ),
-                      child: Column(
+                      child: const Column(
                         children: [
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.info_outline,
                                 color: AppTheme.blue,
                                 size: 16,
                               ),
-                              const SizedBox(width: 8),
-                              const Expanded(
+                              SizedBox(width: 8),
+                              Expanded(
                                 child: Text(
                                   'UDISE कोड आपके स्कूल का विशिष्ट पहचान कोड है।',
                                   style: TextStyle(
@@ -425,8 +425,8 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
+                          SizedBox(height: 8),
+                          Text(
                             'लॉगिन में समस्या? कृपया अपने स्कूल प्रशासक से संपर्क करें।',
                             style: TextStyle(
                               color: AppTheme.darkGray,

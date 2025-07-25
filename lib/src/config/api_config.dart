@@ -1,6 +1,6 @@
 class ApiConfig {
   // Base URL for the backend API
-  static const String baseUrl = 'http://165.22.208.62:5003';
+  static const String baseUrl = 'https://grx6djfl-5003.inc1.devtunnels.ms/';
   //backend url http://165.22.208.62:5003  server of collage//
 
   // Auth endpoints

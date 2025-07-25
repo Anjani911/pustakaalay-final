@@ -42,7 +42,7 @@ class DashboardScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
+                    gradient: const LinearGradient(
                       colors: [AppTheme.primaryGreen, AppTheme.green],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -232,15 +232,15 @@ class DashboardScreen extends StatelessWidget {
                       color: AppTheme.green.withOpacity(0.3),
                     ),
                   ),
-                  child: Row(
+                  child: const Row(
                     children: [
                       Icon(
                         Icons.info_outline,
                         color: AppTheme.green,
                         size: 20,
                       ),
-                      const SizedBox(width: 12),
-                      const Expanded(
+                      SizedBox(width: 12),
+                      Expanded(
                         child: Text(
                           'यह डैशबोर्ड निरंतर विकसित हो रहा है। नई सुविधाएं जल्द ही जोड़ी जाएंगी।',
                           style: TextStyle(

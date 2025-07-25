@@ -68,7 +68,7 @@ class ComingSoonScreen extends StatelessWidget {
                 // Title
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.darkGray,
@@ -108,7 +108,7 @@ class ComingSoonScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
@@ -116,8 +116,8 @@ class ComingSoonScreen extends StatelessWidget {
                         color: Colors.white,
                         size: 24,
                       ),
-                      const SizedBox(width: 12),
-                      const Text(
+                      SizedBox(width: 12),
+                      Text(
                         'जल्द ही आएगा यह विकल्प',
                         style: TextStyle(
                           color: Colors.white,

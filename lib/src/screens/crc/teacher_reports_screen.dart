@@ -237,7 +237,7 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.error_outline,
                       size: 48,
                       color: AppTheme.orange,
@@ -307,7 +307,7 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.people, color: AppTheme.green, size: 20),
+                    const Icon(Icons.people, color: AppTheme.green, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       filteredReports.length.toString(),
@@ -389,7 +389,7 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                 children: [
                   CircleAvatar(
                     backgroundColor: AppTheme.green.withOpacity(0.2),
-                    child: Icon(Icons.person, color: AppTheme.green, size: 20),
+                    child: const Icon(Icons.person, color: AppTheme.green, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -415,11 +415,11 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.phone, size: 12, color: AppTheme.green),
+                            const Icon(Icons.phone, size: 12, color: AppTheme.green),
                             const SizedBox(width: 4),
                             Text(
                               report['mobile'] as String,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.green,
                                 fontWeight: FontWeight.w600,

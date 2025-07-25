@@ -69,8 +69,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
       try {
         // Get UDISE code from app state
         final appState = Provider.of<AppStateProvider>(context, listen: false);
-        String udiseCode =
-            appState.udiseCode ?? "1234"; // Fallback to 1234 if not available
+        final String udiseCode =
+            appState.udiseCode ?? '1234'; // Fallback to 1234 if not available
 
         // Call API to register student with actual file objects
         final result = await ApiService.registerStudent(
@@ -82,9 +82,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           plantImage: _childPlantImage!,
           certificateImage: _certificateImage!,
           udiseCode: udiseCode,
-          employeeId: _employeeIdController.text.trim().isNotEmpty
-              ? _employeeIdController.text.trim()
-              : null,
+          employeeId: _employeeIdController.text
+              .trim(), // Always send as string (empty if not provided)
         );
 
         if (!mounted) return;
@@ -148,7 +147,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   }
 
   void _showImageSourceDialog(String imageType) {
-    String title = imageType == 'child_plant'
+    final String title = imageType == 'child_plant'
         ? 'बच्चे और पौधे की फोटो'
         : 'सर्टिफिकेट की फोटो';
 
@@ -204,19 +203,19 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Instructions card
-                Card(
+                const Card(
                   color: AppTheme.lightBlue,
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.info,
                           color: AppTheme.blue,
                           size: 32,
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
+                        SizedBox(height: 8),
+                        Text(
                           'फोटो अपलोड निर्देश',
                           style: TextStyle(
                             fontSize: 16,
@@ -224,8 +223,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                             color: AppTheme.blue,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
+                        SizedBox(height: 8),
+                        Text(
                           '• पहली फोटो: छात्र, पेड़ और शिक्षक तीनों दिखने चाहिए\n'
                           '• दूसरी फोटो: पेड़ लगाने का सर्टिफिकेट\n'
                           '• दोनों फोटो साफ और स्पष्ट होनी चाहिए\n'

@@ -19,7 +19,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = true;
   String _errorMessage = '';
-  Set<int> _expandedIndices = {}; // Track which cards are expanded
+  final Set<int> _expandedIndices = {}; // Track which cards are expanded
   int _studentsNeedingPhotoUpdate = 0;
 
   @override
@@ -43,7 +43,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   // Method to format date for display
   String _formatDate(String dateTimeString) {
     try {
-      DateTime dateTime = DateTime.parse(dateTimeString);
+      final DateTime dateTime = DateTime.parse(dateTimeString);
 
       // Format as DD/MM/YYYY
       return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}';
@@ -56,7 +56,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   // Method to format date time for display with time
   String _formatDateTime(String dateTimeString) {
     try {
-      DateTime dateTime = DateTime.parse(dateTimeString);
+      final DateTime dateTime = DateTime.parse(dateTimeString);
 
       // Format as DD/MM/YYYY HH:MM
       return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
@@ -91,8 +91,9 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   bool _isPhotoUpdateLocked(Map<String, dynamic> student) {
     try {
       final lastPhotoUpdateString = student['last_photo_update']?.toString();
-      if (lastPhotoUpdateString == null || lastPhotoUpdateString.isEmpty)
+      if (lastPhotoUpdateString == null || lastPhotoUpdateString.isEmpty) {
         return false;
+      }
 
       final lastUpdateDate = DateTime.parse(lastPhotoUpdateString);
       final currentDate = DateTime.now();
@@ -585,7 +586,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final appState = Provider.of<AppStateProvider>(context);
-    final udiseCode = appState.udiseCode ?? "N/A";
+    final udiseCode = appState.udiseCode ?? 'N/A';
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -884,125 +885,58 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          SizedBox(height: 4),
+                                          const SizedBox(height: 4),
                                           Text(
                                               'ID: ${student['student_id']?.toString() ?? 'N/A'}'),
                                           Text(
                                               'कक्षा: ${student['class_name']?.toString() ?? 'N/A'}'),
-                                          SizedBox(height: 8),
-                                          // Upload Photo Button
-                                          Container(
-                                            width: double.infinity,
-                                            child: ElevatedButton.icon(
-                                              onPressed: ApiService.canUploadNow(
-                                                      student['last_photo_update']
-                                                              ?.toString() ??
-                                                          student['date_time']
-                                                              ?.toString() ??
-                                                          '')
-                                                  ? () {
-                                                      // Handle photo upload
-                                                      _showPhotoUpdateDialog(
-                                                          student);
-                                                    }
-                                                  : null, // Disabled when locked
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: ApiService
-                                                        .canUploadNow(student[
-                                                                    'last_photo_update']
-                                                                ?.toString() ??
-                                                            student['date_time']
-                                                                ?.toString() ??
-                                                            '')
-                                                    ? Colors.green[600]
-                                                    : Colors.grey[400],
-                                                foregroundColor: Colors.white,
-                                                padding: EdgeInsets.symmetric(
-                                                    horizontal: 16,
-                                                    vertical: 10),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                elevation: 2,
-                                              ),
-                                              icon: Icon(
-                                                ApiService.canUploadNow(
-                                                        student['last_photo_update']
-                                                                ?.toString() ??
-                                                            student['date_time']
-                                                                ?.toString() ??
-                                                            '')
-                                                    ? Icons.camera_alt
-                                                    : Icons.lock,
-                                                size: 18,
-                                              ),
-                                              label: Builder(
-                                                builder: (context) {
-                                                  final canUpload = ApiService
-                                                      .canUploadNow(student[
-                                                                  'last_photo_update']
-                                                              ?.toString() ??
-                                                          student['date_time']
-                                                              ?.toString() ??
-                                                          '');
-                                                  if (canUpload) {
-                                                    return Text(
-                                                      "फोटो अपलोड करें",
-                                                      style: TextStyle(
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                    );
-                                                  } else {
-                                                    final nextDate = ApiService
-                                                        .getNextUploadDate(student[
-                                                                    'last_photo_update']
-                                                                ?.toString() ??
-                                                            student['date_time']
-                                                                ?.toString() ??
-                                                            '');
-                                                    final remainingDays = ApiService
-                                                        .getRemainingDaysForUpload(student[
-                                                                    'last_photo_update']
-                                                                ?.toString() ??
-                                                            student['date_time']
-                                                                ?.toString() ??
-                                                            '');
-
-                                                    if (nextDate.isNotEmpty &&
-                                                        remainingDays > 0) {
-                                                      return Text(
-                                                        "लॉक ($remainingDays दिन बाकी)",
-                                                        style: TextStyle(
-                                                          fontSize: 14,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                      );
-                                                    } else {
-                                                      return Text(
-                                                        "फोटो अपलोड लॉक",
-                                                        style: TextStyle(
-                                                          fontSize: 14,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                      );
-                                                    }
-                                                  }
+                                          const SizedBox(height: 8),
+                                          // Upload Photo Button - only show when needed
+                                          if (_isPhotoUpdateRequired(student) &&
+                                              !_isPhotoUpdateLocked(student))
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: ElevatedButton.icon(
+                                                onPressed: () {
+                                                  _showPhotoUpdateDialog(
+                                                      student);
                                                 },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      Colors.red[600],
+                                                  foregroundColor: Colors.white,
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 10),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                  ),
+                                                  elevation: 2,
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.camera_alt,
+                                                  size: 18,
+                                                ),
+                                                label: const Text(
+                                                  'फोटो अपडेट करें',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
                                               ),
                                             ),
-                                          ),
                                           // Last upload info
                                           if (student['date_time']
                                                   ?.toString()
                                                   .isNotEmpty ==
                                               true)
                                             Padding(
-                                              padding: EdgeInsets.only(top: 4),
+                                              padding:
+                                                  const EdgeInsets.only(top: 4),
                                               child: Text(
                                                 'पिछला अपलोड: ${_formatDate(student['date_time']?.toString() ?? '')}',
                                                 style: TextStyle(
@@ -1011,40 +945,6 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                                   fontStyle: FontStyle.italic,
                                                 ),
                                               ),
-                                            ),
-                                          // Days remaining info
-                                          if (!ApiService.canUploadNow(
-                                              student['last_photo_update']
-                                                      ?.toString() ??
-                                                  student['date_time']
-                                                      ?.toString() ??
-                                                  ''))
-                                            Builder(
-                                              builder: (context) {
-                                                final remainingDays = ApiService
-                                                    .getRemainingDaysForUpload(
-                                                        student['last_photo_update']
-                                                                ?.toString() ??
-                                                            student['date_time']
-                                                                ?.toString() ??
-                                                            '');
-                                                if (remainingDays > 0) {
-                                                  return Padding(
-                                                    padding:
-                                                        EdgeInsets.only(top: 3),
-                                                    child: Text(
-                                                      '$remainingDays दिन बाकी',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: Colors.blue[700],
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                    ),
-                                                  );
-                                                }
-                                                return SizedBox.shrink();
-                                              },
                                             ),
                                           if (needsPhotoUpdate)
                                             Text(
@@ -1069,7 +969,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                                       ?.toString() ??
                                                   ''))
                                             Container(
-                                              padding: EdgeInsets.all(8),
+                                              padding: const EdgeInsets.all(8),
                                               decoration: BoxDecoration(
                                                 color: Colors.green[600],
                                                 shape: BoxShape.circle,
@@ -1078,11 +978,11 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                                     color: Colors.green
                                                         .withOpacity(0.3),
                                                     blurRadius: 4,
-                                                    offset: Offset(0, 2),
+                                                    offset: const Offset(0, 2),
                                                   ),
                                                 ],
                                               ),
-                                              child: Icon(
+                                              child: const Icon(
                                                 Icons.camera_alt,
                                                 size: 18,
                                                 color: Colors.white,
@@ -1100,7 +1000,8 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                                             '');
                                                 if (remainingDays > 0) {
                                                   return Container(
-                                                    padding: EdgeInsets.all(8),
+                                                    padding:
+                                                        const EdgeInsets.all(8),
                                                     decoration: BoxDecoration(
                                                       color: Colors.blue[600],
                                                       shape: BoxShape.circle,
@@ -1109,13 +1010,14 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                                           color: Colors.blue
                                                               .withOpacity(0.3),
                                                           blurRadius: 4,
-                                                          offset: Offset(0, 2),
+                                                          offset: const Offset(
+                                                              0, 2),
                                                         ),
                                                       ],
                                                     ),
                                                     child: Text(
                                                       '$remainingDays',
-                                                      style: TextStyle(
+                                                      style: const TextStyle(
                                                         fontSize: 13,
                                                         color: Colors.white,
                                                         fontWeight:
@@ -1124,13 +1026,13 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                                     ),
                                                   );
                                                 }
-                                                return SizedBox.shrink();
+                                                return const SizedBox.shrink();
                                               },
                                             ),
-                                          SizedBox(width: 8),
+                                          const SizedBox(width: 8),
                                           // Verification status
                                           Container(
-                                            padding: EdgeInsets.symmetric(
+                                            padding: const EdgeInsets.symmetric(
                                                 horizontal: 8, vertical: 4),
                                             decoration: BoxDecoration(
                                               color:
@@ -1154,7 +1056,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                               ),
                                             ),
                                           ),
-                                          SizedBox(width: 8),
+                                          const SizedBox(width: 8),
                                           if (needsPhotoUpdate)
                                             IconButton(
                                               icon: Icon(

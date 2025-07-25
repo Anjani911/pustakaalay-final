@@ -1,12 +1,12 @@
+
 class TeacherService {
-  // Use the same base URL as ApiService
-  static const String baseUrl = 'http://165.22.208.62:5003';
+  // Use the same base URL as ApiConfig
 
   static Future<Map<String, dynamic>> getTeacherDetails(
       String udiseCode) async {
     try {
       // Simple teacher details response since API might not exist
-      final appName = 'हरिहर पाठशाला';
+      const appName = 'हरिहर पाठशाला';
       final currentTime = DateTime.now();
 
       // Return mock data for now - you can replace with real API call later
@@ -29,7 +29,7 @@ class TeacherService {
       import 'package:http/http.dart' as http;
       
       final response = await http.get(
-        Uri.parse('$baseUrl/teacher-details/$udiseCode'),
+        Uri.parse('${ApiConfig.baseUrl}teacher-details/$udiseCode'),
         headers: {'Content-Type': 'application/json'},
       );
 

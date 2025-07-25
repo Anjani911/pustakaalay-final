@@ -17,7 +17,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
   String _errorMessage = '';
-  Set<int> _expandedIndices = {};
+  final Set<int> _expandedIndices = {};
 
   @override
   void initState() {
@@ -40,7 +40,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
 
     try {
       final appState = Provider.of<AppStateProvider>(context, listen: false);
-      final udiseCode = appState.udiseCode ?? "22010100101";
+      final udiseCode = appState.udiseCode ?? '22010100101';
 
       print('🔍 DEBUG: Fetching teachers for UDISE Code: $udiseCode');
       print('🔍 DEBUG: App State UDISE: ${appState.udiseCode}');
@@ -113,7 +113,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     if (dateTimeString == null || dateTimeString.isEmpty) return 'N/A';
 
     try {
-      DateTime dateTime =
+      final DateTime dateTime =
           DateTime.parse(dateTimeString.replaceAll('GMT', '').trim());
       return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
     } catch (e) {
@@ -151,7 +151,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppStateProvider>(context);
-    final udiseCode = appState.udiseCode ?? "N/A";
+    final udiseCode = appState.udiseCode ?? 'N/A';
 
     return Scaffold(
       appBar: AppBar(
@@ -304,7 +304,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                                         padding: const EdgeInsets.all(16),
                                         child: Row(
                                           children: [
-                                            CircleAvatar(
+                                            const CircleAvatar(
                                               backgroundColor:
                                                   AppTheme.primaryGreen,
                                               radius: 25,

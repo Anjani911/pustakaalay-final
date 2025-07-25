@@ -90,7 +90,7 @@ class _PreviousPhotosScreenState extends State<PreviousPhotosScreen> {
                         color: AppTheme.orange.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.photo,
                         color: AppTheme.orange,
                       ),

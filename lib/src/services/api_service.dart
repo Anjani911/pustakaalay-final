@@ -105,6 +105,89 @@ class ApiService {
     }
   }
 
+  // School login method
+  static Future<Map<String, dynamic>> schoolLogin({
+    required String udiseCode,
+    required String password,
+  }) async {
+    try {
+      final requestBody = {
+        'udise_code': udiseCode,
+        'password': password,
+        'role': 'school',
+      };
+
+      print('School Login Request: $requestBody');
+      print('URL: $loginUrl');
+
+      final response = await http.post(
+        Uri.parse(loginUrl),
+        headers: headers,
+        body: jsonEncode(requestBody),
+      );
+
+      print('Response Status: ${response.statusCode}');
+      print('Response Headers: ${response.headers}');
+      print('Response Body: ${response.body}');
+      print('Response Body Length: ${response.body.length}');
+
+      // Check if response body is empty
+      if (response.body.isEmpty) {
+        print('Warning: Empty response body from server');
+        return {
+          'success': false,
+          'statusCode': response.statusCode,
+          'data': {
+            'message': 'सर्वर से कोई डेटा नहीं मिला। कृपया सर्वर की जांच करें।'
+          },
+        };
+      }
+
+      // Check if response is JSON
+      if (response.headers['content-type']?.contains('application/json') !=
+              true &&
+          !response.body.trim().startsWith('{')) {
+        print('Warning: School login response is not JSON format');
+        return {
+          'success': false,
+          'statusCode': response.statusCode,
+          'data': {
+            'message':
+                'सर्वर से गलत डेटा प्राप्त हुआ। Response: ${response.body}'
+          },
+        };
+      }
+
+      final responseData = jsonDecode(response.body);
+
+      return {
+        'success': response.statusCode == 200,
+        'statusCode': response.statusCode,
+        'data': responseData,
+      };
+    } catch (e) {
+      print('School Login Error: $e');
+      print('Error Type: ${e.runtimeType}');
+
+      // Handle different types of errors
+      String errorMessage;
+      if (e is FormatException) {
+        errorMessage =
+            'सर्वर से गलत प्रारूप में डेटा प्राप्त हुआ। कृपया सर्वर कॉन्फ़िगरेशन की जांच करें।';
+      } else if (e.toString().contains('SocketException')) {
+        errorMessage = 'इंटरनेट कनेक्शन की जांच करें';
+      } else {
+        errorMessage = 'लॉगिन में त्रुटि हुई: $e';
+      }
+
+      return {
+        'success': false,
+        'statusCode': 0,
+        'data': {'message': errorMessage},
+      };
+    }
+  }
+
   // Supervisor/CRC login method
   static Future<Map<String, dynamic>> supervisorLogin({
     required String username,
@@ -204,13 +287,13 @@ class ApiService {
     required File plantImage,
     required File certificateImage,
     required String udiseCode,
-    String? employeeId,
+    required String employeeId,
   }) async {
     try {
       // Create multipart request
-      var request = http.MultipartRequest('POST', Uri.parse(registrationUrl));
+      final request = http.MultipartRequest('POST', Uri.parse(registrationUrl));
 
-      // Add form fields
+      // Add form fields - Always include employee_id
       request.fields.addAll({
         'name': name,
         'school_name': schoolName,
@@ -218,18 +301,17 @@ class ApiService {
         'mobile': mobile,
         'name_of_tree': nameOfTree,
         'udise_code': udiseCode,
+        'employee_id': employeeId, // Send as employee_id
+        'employeeId':
+            employeeId, // Also send as employeeId for backend compatibility
       });
 
-      // Add employee ID if provided
-      if (employeeId != null && employeeId.isNotEmpty) {
-        request.fields['employee_id'] = employeeId;
-        print('=== EMPLOYEE ID DEBUG ===');
-        print('Employee ID provided: $employeeId');
-        print('Adding to request fields as: employee_id = $employeeId');
-      } else {
-        print('=== EMPLOYEE ID DEBUG ===');
-        print('Employee ID is null or empty: $employeeId');
-      }
+      print('=== EMPLOYEE ID DEBUG ===');
+      print('Employee ID being sent: $employeeId');
+      print('All form fields:');
+      request.fields.forEach((key, value) {
+        print('  $key: $value');
+      });
 
       // Add image files
       request.files.add(await http.MultipartFile.fromPath(
@@ -319,7 +401,7 @@ class ApiService {
       final url = '$baseUrl/update_student_photo';
 
       // Create multipart request
-      var request = http.MultipartRequest('POST', Uri.parse(url));
+      final request = http.MultipartRequest('POST', Uri.parse(url));
 
       // Add form fields
       request.fields.addAll({
@@ -962,6 +1044,60 @@ class ApiService {
     }
   }
 
+  // Get school dashboard data
+  static Future<Map<String, dynamic>> getSchoolDashboard(
+      String udiseCode) async {
+    try {
+      final url = '$baseUrl/school_dashboard';
+
+      final requestBody = {
+        'udise_code': udiseCode,
+      };
+
+      print('School Dashboard Request URL: $url');
+      print('School Dashboard Request Body: $requestBody');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print('School Dashboard Response Status: ${response.statusCode}');
+      print('School Dashboard Response Body: ${response.body}');
+
+      // Check if response is JSON
+      if (response.headers['content-type']?.contains('application/json') !=
+              true &&
+          !response.body.trim().startsWith('{')) {
+        print('Warning: School dashboard response is not JSON format');
+        return {
+          'success': false,
+          'statusCode': response.statusCode,
+          'data': {'message': 'सर्वर से गलत डेटा प्राप्त हुआ।'},
+        };
+      }
+
+      final responseData = jsonDecode(response.body);
+
+      return {
+        'success': response.statusCode == 200,
+        'statusCode': response.statusCode,
+        'data': responseData,
+      };
+    } catch (e) {
+      print('School Dashboard Error: $e');
+      return {
+        'success': false,
+        'statusCode': 0,
+        'data': {'message': 'स्कूल डैशबोर्ड डेटा लोड करने में त्रुटि हुई'},
+      };
+    }
+  }
+
   // Get supervisor dashboard data
   static Future<Map<String, dynamic>> getSupervisorDashboard({
     String? udiseCode,
@@ -1082,32 +1218,58 @@ class ApiService {
   // Calculate next upload date (7 days after last upload)
   static String getNextUploadDate(String lastUploadDate) {
     try {
-      DateTime lastUpload = DateTime.parse(lastUploadDate);
-      DateTime nextUploadDate = lastUpload.add(Duration(days: 7));
-      DateTime now = DateTime.now();
+      print('=== NEXT UPLOAD DATE DEBUG ===');
+      print('Input date string: "$lastUploadDate"');
+
+      final DateTime lastUpload = DateTime.parse(lastUploadDate);
+      print('Parsed last upload: $lastUpload');
+
+      final DateTime nextUploadDate = lastUpload.add(const Duration(days: 7));
+      print('Calculated next upload: $nextUploadDate');
+
+      final DateTime now = DateTime.now();
+      print('Current date: $now');
+      print('Days since last upload: ${now.difference(lastUpload).inDays}');
 
       if (now.isAfter(nextUploadDate)) {
-        return "अब अपलोड करें!";
+        print('Can upload now - returning "अब अपलोड करें!"');
+        return 'अब अपलोड करें!';
       } else {
         // Format as DD/MM/YY
-        String year = nextUploadDate.year.toString().substring(2);
-        return "${nextUploadDate.day.toString().padLeft(2, '0')}/${nextUploadDate.month.toString().padLeft(2, '0')}/$year";
+        final String year = nextUploadDate.year.toString().substring(2);
+        final String formatted =
+            "${nextUploadDate.day.toString().padLeft(2, '0')}/${nextUploadDate.month.toString().padLeft(2, '0')}/$year";
+        print('Cannot upload yet - returning: $formatted');
+        return formatted;
       }
     } catch (e) {
       print('Error calculating next upload date: $e');
-      return ""; // Return empty string instead of "N/A"
+      return ''; // Return empty string instead of "N/A"
     }
   }
 
   // Get remaining days for next upload
   static int getRemainingDaysForUpload(String lastUploadDate) {
     try {
-      DateTime lastUpload = DateTime.parse(lastUploadDate);
-      DateTime nextUploadDate = lastUpload.add(Duration(days: 7));
-      DateTime now = DateTime.now();
+      print('=== REMAINING DAYS DEBUG ===');
+      print('Input date string: "$lastUploadDate"');
 
-      int remainingDays = nextUploadDate.difference(now).inDays;
-      return remainingDays > 0 ? remainingDays : 0;
+      final DateTime lastUpload = DateTime.parse(lastUploadDate);
+      print('Parsed last upload: $lastUpload');
+
+      final DateTime nextUploadDate = lastUpload.add(const Duration(days: 7));
+      print('Next upload date: $nextUploadDate');
+
+      final DateTime now = DateTime.now();
+      print('Current date: $now');
+
+      final int remainingDays = nextUploadDate.difference(now).inDays;
+      print('Raw remaining days: $remainingDays');
+
+      final int result = remainingDays > 0 ? remainingDays : 0;
+      print('Final remaining days: $result');
+
+      return result;
     } catch (e) {
       print('Error calculating remaining days: $e');
       return 0; // Return 0 instead of -1 for error case
@@ -1117,12 +1279,24 @@ class ApiService {
   // Check if student can upload now
   static bool canUploadNow(String lastUploadDate) {
     try {
-      DateTime lastUpload = DateTime.parse(lastUploadDate);
-      DateTime nextUploadDate = lastUpload.add(Duration(days: 7));
-      DateTime now = DateTime.now();
+      print('=== CAN UPLOAD NOW DEBUG ===');
+      print('Input date string: "$lastUploadDate"');
 
-      return now.isAfter(nextUploadDate) ||
-          now.isAtSameMomentAs(nextUploadDate);
+      final DateTime lastUpload = DateTime.parse(lastUploadDate);
+      print('Parsed last upload: $lastUpload');
+
+      final DateTime nextUploadDate = lastUpload.add(const Duration(days: 7));
+      print('Next upload date: $nextUploadDate');
+
+      final DateTime now = DateTime.now();
+      print('Current date: $now');
+      print('Days since last upload: ${now.difference(lastUpload).inDays}');
+
+      final bool canUpload =
+          now.isAfter(nextUploadDate) || now.isAtSameMomentAs(nextUploadDate);
+      print('Can upload result: $canUpload');
+
+      return canUpload;
     } catch (e) {
       print('Error checking upload eligibility: $e');
       return false;

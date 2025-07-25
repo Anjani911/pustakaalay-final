@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
+import '../services/api_service.dart';
 
 enum UserType { teacher, crc }
 
@@ -96,38 +94,33 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> login(
       String udiseCode, String employeeId, String password) async {
     try {
-      final requestBody = {
-        'udise_code': udiseCode,
-        'password': password,
-        'role': 'school', // Add role field for school login
-      };
-
       print('=== SCHOOL LOGIN REQUEST DEBUG ===');
-      print('Request Body: $requestBody');
-      print('URL: ${ApiConfig.loginEndpoint}');
+      print('UDISE Code: $udiseCode');
+      print('Password: $password');
 
-      final response = await http.post(
-        Uri.parse(ApiConfig.loginEndpoint),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(requestBody),
+      // Use ApiService schoolLogin method
+      final result = await ApiService.schoolLogin(
+        udiseCode: udiseCode,
+        password: password,
       );
 
       print('=== SCHOOL LOGIN RESPONSE DEBUG ===');
-      print('Response Status: ${response.statusCode}');
-      print('Response Body: ${response.body}');
+      print('Result: $result');
+      print('Success: ${result['success']}');
+      print('Status Code: ${result['statusCode']}');
+      print('Data: ${result['data']}');
 
-      final data = json.decode(response.body);
-      print('Parsed Data: $data');
+      if (result['success'] == true && result['statusCode'] == 200) {
+        final data = result['data'];
 
-      if (data is Map) {
-        print('Available fields: ${data.keys}');
-        print('Role field: ${data['role']}');
-        print('User_type field: ${data['user_type']}');
-        print('UserType field: ${data['userType']}');
-        print('User_role field: ${data['user_role']}');
-      }
+        if (data is Map) {
+          print('Available fields: ${data.keys}');
+          print('Role field: ${data['role']}');
+          print('User_type field: ${data['user_type']}');
+          print('UserType field: ${data['userType']}');
+          print('User_role field: ${data['user_role']}');
+        }
 
-      if (response.statusCode == 200) {
         // Extract role from response
         String? userRole = 'teacher'; // Default
         if (data is Map) {
@@ -185,13 +178,12 @@ class AppStateProvider extends ChangeNotifier {
       } else {
         // Login failed - Add better debugging
         print('=== SCHOOL LOGIN FAILED DEBUG ===');
-        print('Full Response: $data');
-        print('Status: ${response.statusCode}');
-        print('Message: ${data['message']}');
+        print('Full Result: $result');
+        print('Status Code: ${result['statusCode']}');
 
-        // Check for message in different locations
+        final data = result['data'];
         String errorMessage = 'Login failed';
-        if (data['message'] != null) {
+        if (data is Map && data['message'] != null) {
           errorMessage = data['message'].toString();
         }
 
