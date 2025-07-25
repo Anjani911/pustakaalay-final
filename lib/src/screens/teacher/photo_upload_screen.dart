@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -25,6 +26,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   final _mobileController = TextEditingController();
   final _employeeIdController = TextEditingController();
   bool _isUploading = false;
+  String? _selectedClass; // Selected class for dropdown
 
   @override
   void dispose() {
@@ -57,8 +59,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   }
 
   Future<void> _uploadPhoto() async {
-    if (_formKey.currentState!.validate() && 
-        _childPlantImage != null && 
+    if (_formKey.currentState!.validate() &&
+        _childPlantImage != null &&
         _certificateImage != null) {
       setState(() {
         _isUploading = true;
@@ -67,8 +69,9 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
       try {
         // Get UDISE code from app state
         final appState = Provider.of<AppStateProvider>(context, listen: false);
-        String udiseCode = appState.udiseCode ?? "1234"; // Fallback to 1234 if not available
-        
+        String udiseCode =
+            appState.udiseCode ?? "1234"; // Fallback to 1234 if not available
+
         // Call API to register student with actual file objects
         final result = await ApiService.registerStudent(
           name: _studentNameController.text.trim(),
@@ -79,8 +82,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           plantImage: _childPlantImage!,
           certificateImage: _certificateImage!,
           udiseCode: udiseCode,
-          employeeId: _employeeIdController.text.trim().isNotEmpty 
-              ? _employeeIdController.text.trim() 
+          employeeId: _employeeIdController.text.trim().isNotEmpty
+              ? _employeeIdController.text.trim()
               : null,
         );
 
@@ -99,6 +102,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           setState(() {
             _childPlantImage = null;
             _certificateImage = null;
+            _selectedClass = null; // Reset selected class
             _isUploading = false;
           });
           _formKey.currentState!.reset();
@@ -114,7 +118,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           if (result['data'] != null && result['data']['message'] != null) {
             errorMessage = result['data']['message'].toString();
           }
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(errorMessage),
@@ -124,7 +128,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
         }
       } catch (e) {
         if (!mounted) return;
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('नेटवर्क एरर: $e'),
@@ -144,8 +148,10 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   }
 
   void _showImageSourceDialog(String imageType) {
-    String title = imageType == 'child_plant' ? 'बच्चे और पौधे की फोटो' : 'सर्टिफिकेट की फोटो';
-    
+    String title = imageType == 'child_plant'
+        ? 'बच्चे और पौधे की फोटो'
+        : 'सर्टिफिकेट की फोटो';
+
     showDialog<void>(
       context: context,
       builder: (BuildContext context) {
@@ -257,7 +263,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                         style: BorderStyle.solid,
                       ),
                       borderRadius: BorderRadius.circular(12),
-                      color: _childPlantImage != null ? null : AppTheme.lightGreen,
+                      color:
+                          _childPlantImage != null ? null : AppTheme.lightGreen,
                     ),
                     child: _childPlantImage != null
                         ? ClipRRect(
@@ -291,7 +298,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // 2. Certificate Photo
                 const Text(
                   '2. सर्टिफिकेट की फोटो',
@@ -313,7 +320,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                         style: BorderStyle.solid,
                       ),
                       borderRadius: BorderRadius.circular(12),
-                      color: _certificateImage != null ? null : AppTheme.lightBlue,
+                      color:
+                          _certificateImage != null ? null : AppTheme.lightBlue,
                     ),
                     child: _certificateImage != null
                         ? ClipRRect(
@@ -364,7 +372,6 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
                         TextFormField(
                           controller: _studentNameController,
                           decoration: const InputDecoration(
@@ -381,7 +388,6 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-
                         TextFormField(
                           controller: _schoolController,
                           decoration: const InputDecoration(
@@ -398,24 +404,36 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-
-                        TextFormField(
-                          controller: _classController,
+                        DropdownButtonFormField<String>(
+                          value: _selectedClass,
                           decoration: const InputDecoration(
                             labelText: 'कक्षा',
-                            hintText: 'उदाहरण: कक्षा 1, कक्षा 2, कक्षा 3',
+                            hintText: 'कक्षा चुनें (1-12)',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.class_),
                           ),
+                          items: List.generate(12, (index) {
+                            final classNumber = index + 1;
+                            return DropdownMenuItem<String>(
+                              value: classNumber.toString(),
+                              child: Text('कक्षा $classNumber'),
+                            );
+                          }),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _selectedClass = newValue;
+                              // Update the controller for API compatibility
+                              _classController.text = newValue ?? '';
+                            });
+                          },
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'कृपया कक्षा दर्ज करें';
+                              return 'कृपया कक्षा चुनें';
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 16),
-
                         TextFormField(
                           controller: _plantNameController,
                           decoration: const InputDecoration(
@@ -432,15 +450,20 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-
                         TextFormField(
                           controller: _mobileController,
                           keyboardType: TextInputType.phone,
+                          maxLength: 10,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
                           decoration: const InputDecoration(
                             labelText: 'मोबाइल नंबर',
                             hintText: '10 अंकों का मोबाइल नंबर दर्ज करें',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.phone),
+                            counterText: '', // Hide character counter
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -449,11 +472,21 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                             if (value.length != 10) {
                               return 'मोबाइल नंबर 10 अंकों का होना चाहिए';
                             }
+                            if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+                              return 'केवल अंक दर्ज करें';
+                            }
+                            if (value.startsWith('0') ||
+                                value.startsWith('1') ||
+                                value.startsWith('2') ||
+                                value.startsWith('3') ||
+                                value.startsWith('4') ||
+                                value.startsWith('5')) {
+                              return 'मोबाइल नंबर 6-9 से शुरू होना चाहिए';
+                            }
                             return null;
                           },
                         ),
                         const SizedBox(height: 16),
-
                         TextFormField(
                           controller: _employeeIdController,
                           decoration: const InputDecoration(
@@ -491,7 +524,9 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                           )
                         : const Icon(Icons.cloud_upload),
                     label: Text(
-                      _isUploading ? 'पंजीकरण हो रहा है...' : 'छात्र पंजीकरण करें',
+                      _isUploading
+                          ? 'पंजीकरण हो रहा है...'
+                          : 'छात्र पंजीकरण करें',
                       style: const TextStyle(fontSize: 16),
                     ),
                   ),

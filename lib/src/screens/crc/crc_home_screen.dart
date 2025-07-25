@@ -32,11 +32,12 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
       // Get app state to get UDISE code
       final appState = Provider.of<AppStateProvider>(context, listen: false);
       final udiseCode = appState.udiseCode;
-      
+
       print('CRC Home - Loading dashboard with UDISE code: $udiseCode');
-      
-      final result = await ApiService.getSupervisorDashboard(udiseCode: udiseCode);
-      
+
+      final result =
+          await ApiService.getSupervisorDashboard(udiseCode: udiseCode);
+
       if (result['success'] == true) {
         setState(() {
           dashboardData = result['data'] as Map<String, dynamic>? ?? {};
@@ -45,7 +46,8 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
         print('Dashboard data loaded successfully: ${dashboardData.keys}');
       } else {
         setState(() {
-          errorMessage = (result['data']['message'] as String?) ?? 'डैशबोर्ड डेटा लोड करने में त्रुटि';
+          errorMessage = (result['data']['message'] as String?) ??
+              'डैशबोर्ड डेटा लोड करने में त्रुटि';
           isLoading = false;
         });
       }
@@ -61,7 +63,7 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppStateProvider>(context);
-    
+
     final supervisorActions = [
       {
         'id': AppScreen.teacherReports,
@@ -81,7 +83,9 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('स्वागत, ${appState.loggedInUser ?? "सुपरवाइजर"}'),
+        title: Text(appState.loggedInUser != null
+            ? 'स्वागत, ${appState.loggedInUser}'
+            : 'स्वागत, सुपरवाइजर'),
         backgroundColor: AppTheme.blue,
         elevation: 0,
         actions: [
@@ -138,13 +142,35 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
                           child: Column(
                             children: [
                               const SizedBox(height: 20),
-                              const CircleAvatar(
-                                radius: 40,
-                                backgroundColor: AppTheme.white,
-                                child: Icon(
-                                  Icons.supervisor_account,
-                                  size: 50,
-                                  color: AppTheme.blue,
+                              // हरिहर पाठशाला Logo
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                padding: const EdgeInsets.all(8),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.asset(
+                                    'assets/images/app_icon.png',
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(
+                                        Icons.school,
+                                        size: 50,
+                                        color: AppTheme.blue,
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -167,7 +193,7 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
                             ],
                           ),
                         ),
-                        
+
                         // Quick actions grid
                         Padding(
                           padding: const EdgeInsets.all(20),
@@ -183,11 +209,12 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              
+
                               GridView.builder(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
                                   childAspectRatio: 1.1,
                                   crossAxisSpacing: 16,
@@ -207,9 +234,9 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
                                   );
                                 },
                               ),
-                              
+
                               const SizedBox(height: 30),
-                              
+
                               // Statistics section with real data
                               Card(
                                 elevation: 4,
@@ -219,7 +246,8 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(20),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Row(
                                         children: [
@@ -240,13 +268,13 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
                                         ],
                                       ),
                                       const SizedBox(height: 20),
-                                      
                                       Row(
                                         children: [
                                           Expanded(
                                             child: _buildStatCard(
                                               'कुल स्कूल',
-                                              _getStatValue('total_schools', '145'),
+                                              _getStatValue(
+                                                  'total_schools', '145'),
                                               Icons.school,
                                               AppTheme.blue,
                                             ),
@@ -255,7 +283,8 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
                                           Expanded(
                                             child: _buildStatCard(
                                               'सक्रिय शिक्षक',
-                                              _getStatValue('active_teachers', '342'),
+                                              _getStatValue(
+                                                  'active_teachers', '342'),
                                               Icons.people,
                                               AppTheme.green,
                                             ),
@@ -263,13 +292,13 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
                                         ],
                                       ),
                                       const SizedBox(height: 12),
-                                      
                                       Row(
                                         children: [
                                           Expanded(
                                             child: _buildStatCard(
                                               'अपलोडेड फोटो',
-                                              _getStatValue('uploaded_photos', '1,248'),
+                                              _getStatValue(
+                                                  'uploaded_photos', '1,248'),
                                               Icons.photo_library,
                                               AppTheme.purple,
                                             ),
@@ -278,7 +307,9 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
                                           Expanded(
                                             child: _buildStatCard(
                                               'रजिस्टर्ड छात्र',
-                                              _getStatValue('registered_students', '8,756'),
+                                              _getStatValue(
+                                                  'registered_students',
+                                                  '8,756'),
                                               Icons.child_care,
                                               AppTheme.orange,
                                             ),
@@ -289,7 +320,7 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
                                   ),
                                 ),
                               ),
-                              
+
                               const SizedBox(height: 20),
                             ],
                           ),
@@ -305,12 +336,13 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
     // Handle special photo calculation (double the student count)
     if (key == 'uploaded_photos') {
       if (dashboardData.containsKey('total_number_of_student')) {
-        final studentCount = dashboardData['total_number_of_student'] as int? ?? 0;
+        final studentCount =
+            dashboardData['total_number_of_student'] as int? ?? 0;
         return (studentCount * 2).toString();
       }
       return defaultValue;
     }
-    
+
     // Map the display keys to API response keys
     String apiKey;
     switch (key) {
@@ -326,7 +358,7 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
       default:
         apiKey = key;
     }
-    
+
     if (dashboardData.containsKey(apiKey)) {
       return dashboardData[apiKey].toString();
     }
@@ -408,7 +440,8 @@ class _CRCHomeScreenState extends State<CRCHomeScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

@@ -151,7 +151,9 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('स्वागत, ${appState.loggedInUser ?? "शिक्षक"}'),
+        title: Text(appState.loggedInUser != null
+            ? 'स्वागत, ${appState.loggedInUser}'
+            : 'स्वागत, शिक्षक'),
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
         actions: [
@@ -183,13 +185,35 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
-                    const CircleAvatar(
-                      radius: 40,
-                      backgroundColor: AppTheme.white,
-                      child: Icon(
-                        Icons.person,
-                        size: 50,
-                        color: AppTheme.primaryGreen,
+                    // हरिहर पाठशाला Logo
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          'assets/images/app_icon.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              Icons.school,
+                              size: 50,
+                              color: AppTheme.primaryGreen,
+                            );
+                          },
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),

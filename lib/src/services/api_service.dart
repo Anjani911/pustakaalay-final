@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:io';
+import '../config/api_config.dart';
 
 class ApiService {
-  // Base URL for the API
-  static const String baseUrl = 'http://165.22.208.62:5003';
+  // Use base URL from ApiConfig
+  static String get baseUrl => ApiConfig.baseUrl;
 
   // Login endpoint
   static const String loginEndpoint = '/login';
@@ -222,6 +223,12 @@ class ApiService {
       // Add employee ID if provided
       if (employeeId != null && employeeId.isNotEmpty) {
         request.fields['employee_id'] = employeeId;
+        print('=== EMPLOYEE ID DEBUG ===');
+        print('Employee ID provided: $employeeId');
+        print('Adding to request fields as: employee_id = $employeeId');
+      } else {
+        print('=== EMPLOYEE ID DEBUG ===');
+        print('Employee ID is null or empty: $employeeId');
       }
 
       // Add image files
@@ -263,6 +270,17 @@ class ApiService {
 
       final responseData = jsonDecode(response.body);
 
+      // Debug: Check if employee_id is in response
+      print('=== REGISTRATION RESPONSE DEBUG ===');
+      if (responseData is Map && responseData.containsKey('data')) {
+        final data = responseData['data'];
+        if (data is Map) {
+          print('Response employee_id: ${data['employee_id']}');
+          print('Response emp_id: ${data['emp_id']}');
+          print('Response all fields: ${data.keys}');
+        }
+      }
+
       return {
         'success': response.statusCode == 200,
         'statusCode': response.statusCode,
@@ -299,46 +317,50 @@ class ApiService {
   }) async {
     try {
       final url = '$baseUrl/update_student_photo';
-      
+
       // Create multipart request
       var request = http.MultipartRequest('POST', Uri.parse(url));
-      
+
       // Add form fields
       request.fields.addAll({
         'student_id': studentId,
       });
-      
+
       // Add image file
       request.files.add(await http.MultipartFile.fromPath(
         'photo',
         photoFile.path,
       ));
-      
+
       print('Update Student Photo Request Fields: ${request.fields}');
-      print('Update Student Photo Request Files: ${request.files.map((f) => f.field)}');
+      print(
+          'Update Student Photo Request Files: ${request.files.map((f) => f.field)}');
       print('URL: $url');
-      
+
       // Send the request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      
+
       print('Response Status: ${response.statusCode}');
       print('Response Headers: ${response.headers}');
       print('Response Body: ${response.body}');
-      
+
       // Check if response is JSON
-      if (response.headers['content-type']?.contains('application/json') != true) {
+      if (response.headers['content-type']?.contains('application/json') !=
+          true) {
         print('Warning: Response is not JSON format');
         return {
           'success': false,
           'statusCode': response.statusCode,
-          'data': {'message': 'Server returned non-JSON response: ${response.body}'},
+          'data': {
+            'message': 'Server returned non-JSON response: ${response.body}'
+          },
         };
       }
-      
+
       // Parse JSON response
       final responseData = jsonDecode(response.body);
-      
+
       return {
         'success': response.statusCode == 200,
         'statusCode': response.statusCode,
@@ -351,9 +373,11 @@ class ApiService {
       // Handle different types of errors
       String errorMessage;
       if (e is FormatException) {
-        errorMessage = 'Server response format error. Please check server configuration.';
+        errorMessage =
+            'Server response format error. Please check server configuration.';
       } else if (e.toString().contains('SocketException')) {
-        errorMessage = 'Network connection error. Please check your internet connection.';
+        errorMessage =
+            'Network connection error. Please check your internet connection.';
       } else {
         errorMessage = 'Network error occurred: $e';
       }
@@ -1052,6 +1076,56 @@ class ApiService {
         'statusCode': 0,
         'data': {'message': 'शिक्षक डैशबोर्ड डेटा लोड करने में त्रुटि हुई'},
       };
+    }
+  }
+
+  // Calculate next upload date (7 days after last upload)
+  static String getNextUploadDate(String lastUploadDate) {
+    try {
+      DateTime lastUpload = DateTime.parse(lastUploadDate);
+      DateTime nextUploadDate = lastUpload.add(Duration(days: 7));
+      DateTime now = DateTime.now();
+
+      if (now.isAfter(nextUploadDate)) {
+        return "अब अपलोड करें!";
+      } else {
+        // Format as DD/MM/YY
+        String year = nextUploadDate.year.toString().substring(2);
+        return "${nextUploadDate.day.toString().padLeft(2, '0')}/${nextUploadDate.month.toString().padLeft(2, '0')}/$year";
+      }
+    } catch (e) {
+      print('Error calculating next upload date: $e');
+      return ""; // Return empty string instead of "N/A"
+    }
+  }
+
+  // Get remaining days for next upload
+  static int getRemainingDaysForUpload(String lastUploadDate) {
+    try {
+      DateTime lastUpload = DateTime.parse(lastUploadDate);
+      DateTime nextUploadDate = lastUpload.add(Duration(days: 7));
+      DateTime now = DateTime.now();
+
+      int remainingDays = nextUploadDate.difference(now).inDays;
+      return remainingDays > 0 ? remainingDays : 0;
+    } catch (e) {
+      print('Error calculating remaining days: $e');
+      return 0; // Return 0 instead of -1 for error case
+    }
+  }
+
+  // Check if student can upload now
+  static bool canUploadNow(String lastUploadDate) {
+    try {
+      DateTime lastUpload = DateTime.parse(lastUploadDate);
+      DateTime nextUploadDate = lastUpload.add(Duration(days: 7));
+      DateTime now = DateTime.now();
+
+      return now.isAfter(nextUploadDate) ||
+          now.isAtSameMomentAs(nextUploadDate);
+    } catch (e) {
+      print('Error checking upload eligibility: $e');
+      return false;
     }
   }
 }

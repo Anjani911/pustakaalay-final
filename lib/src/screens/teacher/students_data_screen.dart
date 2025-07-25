@@ -40,13 +40,40 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
     _filterStudents(_searchController.text);
   }
 
+  // Method to format date for display
+  String _formatDate(String dateTimeString) {
+    try {
+      DateTime dateTime = DateTime.parse(dateTimeString);
+
+      // Format as DD/MM/YYYY
+      return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}';
+    } catch (e) {
+      print('Error formatting date: $e');
+      return 'तारीख ज्ञात नहीं';
+    }
+  }
+
+  // Method to format date time for display with time
+  String _formatDateTime(String dateTimeString) {
+    try {
+      DateTime dateTime = DateTime.parse(dateTimeString);
+
+      // Format as DD/MM/YYYY HH:MM
+      return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      print('Error formatting datetime: $e');
+      return 'समय ज्ञात नहीं';
+    }
+  }
+
   // Photo update methods
   bool _isPhotoUpdateRequired(Map<String, dynamic> student) {
     try {
       // Check if there's a last photo update date, otherwise use registration date
       final lastPhotoUpdateString = student['last_photo_update']?.toString();
-      final dateTimeString = lastPhotoUpdateString ?? student['date_time']?.toString();
-      
+      final dateTimeString =
+          lastPhotoUpdateString ?? student['date_time']?.toString();
+
       if (dateTimeString == null || dateTimeString.isEmpty) return false;
 
       final lastUpdateDate = DateTime.parse(dateTimeString);
@@ -64,7 +91,8 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   bool _isPhotoUpdateLocked(Map<String, dynamic> student) {
     try {
       final lastPhotoUpdateString = student['last_photo_update']?.toString();
-      if (lastPhotoUpdateString == null || lastPhotoUpdateString.isEmpty) return false;
+      if (lastPhotoUpdateString == null || lastPhotoUpdateString.isEmpty)
+        return false;
 
       final lastUpdateDate = DateTime.parse(lastPhotoUpdateString);
       final currentDate = DateTime.now();
@@ -81,8 +109,9 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
   int _getDaysSinceLastPhotoUpdate(Map<String, dynamic> student) {
     try {
       final lastPhotoUpdateString = student['last_photo_update']?.toString();
-      final dateTimeString = lastPhotoUpdateString ?? student['date_time']?.toString();
-      
+      final dateTimeString =
+          lastPhotoUpdateString ?? student['date_time']?.toString();
+
       if (dateTimeString == null || dateTimeString.isEmpty) return 0;
 
       final lastUpdateDate = DateTime.parse(dateTimeString);
@@ -105,6 +134,23 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
     } catch (e) {
       print('Error calculating days since registration: $e');
       return 0;
+    }
+  }
+
+  // Check if student is newly registered (within last 7 days)
+  bool _isNewlyRegistered(Map<String, dynamic> student) {
+    try {
+      final dateTimeString = student['date_time']?.toString();
+      if (dateTimeString == null || dateTimeString.isEmpty) return false;
+
+      final registrationDate = DateTime.parse(dateTimeString);
+      final currentDate = DateTime.now();
+      final daysDifference = currentDate.difference(registrationDate).inDays;
+
+      return daysDifference <= 7; // Show as "new" for 7 days
+    } catch (e) {
+      print('Error checking if newly registered: $e');
+      return false;
     }
   }
 
@@ -184,7 +230,8 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
     );
   }
 
-  Future<void> _pickAndUploadPhoto(Map<String, dynamic> student, ImageSource source) async {
+  Future<void> _pickAndUploadPhoto(
+      Map<String, dynamic> student, ImageSource source) async {
     try {
       final XFile? image = await _picker.pickImage(
         source: source,
@@ -207,7 +254,8 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
     }
   }
 
-  Future<void> _uploadStudentPhoto(Map<String, dynamic> student, File imageFile) async {
+  Future<void> _uploadStudentPhoto(
+      Map<String, dynamic> student, File imageFile) async {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -239,11 +287,13 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
         final studentIndex = _allStudents.indexWhere(
           (s) => s['student_id'] == student['student_id'],
         );
-        
+
         if (studentIndex != -1) {
           setState(() {
-            _allStudents[studentIndex]['last_photo_update'] = DateTime.now().toIso8601String();
-            _studentsNeedingPhotoUpdate = _allStudents.where(_isPhotoUpdateRequired).length;
+            _allStudents[studentIndex]['last_photo_update'] =
+                DateTime.now().toIso8601String();
+            _studentsNeedingPhotoUpdate =
+                _allStudents.where(_isPhotoUpdateRequired).length;
           });
           _filterStudents(_searchController.text);
         }
@@ -260,7 +310,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
         if (data != null && data['message'] != null) {
           errorMessage = data['message'].toString();
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -271,7 +321,7 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('नेटवर्क एरर: $e'),
@@ -358,17 +408,115 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
 
       final result = await ApiService.getStudentsByUdise(udiseCode);
       if (result['success'] == true && result['data'] != null) {
-        final studentsData = result['data'];
-        if (studentsData is List) {
-          students = List<Map<String, dynamic>>.from(studentsData);
-        } else {
-          students = [];
+        final responseData = result['data'];
+
+        // Handle different response structures
+        List<dynamic> studentsData = [];
+        if (responseData is Map<String, dynamic>) {
+          // If response has nested data structure
+          if (responseData.containsKey('data')) {
+            final nestedData = responseData['data'];
+            if (nestedData is List) {
+              studentsData = nestedData;
+            }
+          }
+        } else if (responseData is List) {
+          // If response is directly a list
+          studentsData = responseData;
         }
+
+        print('Students data count: ${studentsData.length}');
+        print(
+            'Sample student data: ${studentsData.isNotEmpty ? studentsData.first : 'No data'}');
+
+        // Debug: Check if employee_id field is available
+        if (studentsData.isNotEmpty) {
+          final sampleStudent = studentsData.first;
+          print('Available fields in student data: ${sampleStudent.keys}');
+          print('Employee ID field value: ${sampleStudent['employee_id']}');
+
+          // Check all possible employee ID field names
+          print('emp_id: ${sampleStudent['emp_id']}');
+          print('employee_number: ${sampleStudent['employee_number']}');
+          print('teacher_id: ${sampleStudent['teacher_id']}');
+          print('empId: ${sampleStudent['empId']}');
+          print('employeeId: ${sampleStudent['employeeId']}');
+
+          // Check if the latest student (Jatin) has employee_id
+          final latestStudent = studentsData.firstWhere(
+            (student) =>
+                student['name']?.toString().toLowerCase().contains('jatin') ==
+                true,
+            orElse: () => null,
+          );
+
+          if (latestStudent != null) {
+            print('=== JATIN\'S DATA DEBUG ===');
+            print('Jatin full data: $latestStudent');
+            print('Jatin employee_id: ${latestStudent['employee_id']}');
+            print('Jatin emp_id: ${latestStudent['emp_id']}');
+            print('Jatin all keys: ${latestStudent.keys}');
+          }
+        }
+
+        // Map API field names to expected field names
+        students = studentsData
+            .map((studentData) {
+              if (studentData is Map<String, dynamic>) {
+                return {
+                  'student_id': studentData['mobile']?.toString() ??
+                      studentData['student_id']?.toString() ??
+                      'N/A',
+                  'student_name': studentData['name']?.toString() ??
+                      studentData['student_name']?.toString() ??
+                      'N/A',
+                  'class_name': studentData['class']?.toString() ??
+                      studentData['class_name']?.toString() ??
+                      'N/A',
+                  'phone_number': studentData['mobile']?.toString() ??
+                      studentData['phone_number']?.toString() ??
+                      'N/A',
+                  'employee_id': studentData['employee_id']?.toString() ??
+                      studentData['emp_id']?.toString() ??
+                      studentData['employeeId']?.toString() ??
+                      studentData['empId']?.toString() ??
+                      studentData['teacher_id']?.toString() ??
+                      'N/A',
+                  'date_time': studentData['date_time']?.toString() ?? 'N/A',
+                  'udise_code':
+                      studentData['udise_code']?.toString() ?? udiseCode,
+                  'school_name':
+                      studentData['school_name']?.toString() ?? 'N/A',
+                  'name_of_tree':
+                      studentData['name_of_tree']?.toString() ?? 'N/A',
+                  'plant_image': studentData['plant_image']?.toString() ?? '',
+                  'certificate': studentData['certificate']?.toString() ?? '',
+                  'verified': studentData['verified']?.toString() ?? 'false',
+                  'last_photo_update':
+                      studentData['last_photo_update']?.toString() ??
+                          studentData['date_time']?.toString(),
+                };
+              }
+              return <String, dynamic>{};
+            })
+            .where((student) => student.isNotEmpty)
+            .toList();
       } else {
         throw Exception(
             result['data']?['message'] ?? 'Failed to fetch students data');
       }
       print('API Response - Students count: ${students.length}');
+
+      // Sort students by registration date - newest first
+      students.sort((a, b) {
+        try {
+          final dateA = DateTime.parse(a['date_time']?.toString() ?? '');
+          final dateB = DateTime.parse(b['date_time']?.toString() ?? '');
+          return dateB.compareTo(dateA); // Newest first (descending order)
+        } catch (e) {
+          return 0; // Keep original order if date parsing fails
+        }
+      });
 
       setState(() {
         _allStudents = students;
@@ -401,18 +549,35 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
               student['student_name']?.toString().toLowerCase() ?? '';
           final studentId =
               student['student_id']?.toString().toLowerCase() ?? '';
-          final parentName =
-              student['parent_name']?.toString().toLowerCase() ?? '';
+          final phoneNumber =
+              student['phone_number']?.toString().toLowerCase() ?? '';
           final className =
               student['class_name']?.toString().toLowerCase() ?? '';
+          final schoolName =
+              student['school_name']?.toString().toLowerCase() ?? '';
+          final employeeId =
+              student['employee_id']?.toString().toLowerCase() ?? '';
           final searchQuery = query.toLowerCase();
 
           return studentName.contains(searchQuery) ||
               studentId.contains(searchQuery) ||
-              parentName.contains(searchQuery) ||
-              className.contains(searchQuery);
+              phoneNumber.contains(searchQuery) ||
+              className.contains(searchQuery) ||
+              schoolName.contains(searchQuery) ||
+              employeeId.contains(searchQuery);
         }).toList();
       }
+
+      // Always sort filtered results by registration date - newest first
+      _filteredStudents.sort((a, b) {
+        try {
+          final dateA = DateTime.parse(a['date_time']?.toString() ?? '');
+          final dateB = DateTime.parse(b['date_time']?.toString() ?? '');
+          return dateB.compareTo(dateA); // Newest first (descending order)
+        } catch (e) {
+          return 0; // Keep original order if date parsing fails
+        }
+      });
     });
   }
 
@@ -428,7 +593,27 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('छात्र डेटा'),
+            Row(
+              children: [
+                const Text('छात्र डेटा'),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'नवीनतम पहले',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             Text(
               'UDISE: $udiseCode',
               style: const TextStyle(
@@ -590,9 +775,12 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                   _expandedIndices.contains(index);
                               final needsPhotoUpdate =
                                   _isPhotoUpdateRequired(student);
-                              final isPhotoLocked = _isPhotoUpdateLocked(student);
+                              final isPhotoLocked =
+                                  _isPhotoUpdateLocked(student);
                               final daysSinceLastUpdate =
                                   _getDaysSinceLastPhotoUpdate(student);
+                              final isNewlyRegistered =
+                                  _isNewlyRegistered(student);
 
                               return Card(
                                 margin: const EdgeInsets.only(bottom: 12),
@@ -603,7 +791,10 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                   side: needsPhotoUpdate
                                       ? const BorderSide(
                                           color: Colors.red, width: 2)
-                                      : BorderSide.none,
+                                      : isNewlyRegistered
+                                          ? const BorderSide(
+                                              color: Colors.green, width: 2)
+                                          : BorderSide.none,
                                 ),
                                 child: Column(
                                   children: [
@@ -643,29 +834,227 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                             ),
                                         ],
                                       ),
-                                      title: Text(
-                                        student['student_name']?.toString() ??
-                                            'N/A',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
+                                      title: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Student name with NEW badge
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  student['student_name']
+                                                          ?.toString() ??
+                                                      'N/A',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (isNewlyRegistered) ...[
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.green,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                  ),
+                                                  child: const Text(
+                                                    'NEW',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                       subtitle: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
+                                          SizedBox(height: 4),
                                           Text(
                                               'ID: ${student['student_id']?.toString() ?? 'N/A'}'),
                                           Text(
                                               'कक्षा: ${student['class_name']?.toString() ?? 'N/A'}'),
+                                          SizedBox(height: 8),
+                                          // Upload Photo Button
+                                          Container(
+                                            width: double.infinity,
+                                            child: ElevatedButton.icon(
+                                              onPressed: ApiService.canUploadNow(
+                                                      student['last_photo_update']
+                                                              ?.toString() ??
+                                                          student['date_time']
+                                                              ?.toString() ??
+                                                          '')
+                                                  ? () {
+                                                      // Handle photo upload
+                                                      _showPhotoUpdateDialog(
+                                                          student);
+                                                    }
+                                                  : null, // Disabled when locked
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: ApiService
+                                                        .canUploadNow(student[
+                                                                    'last_photo_update']
+                                                                ?.toString() ??
+                                                            student['date_time']
+                                                                ?.toString() ??
+                                                            '')
+                                                    ? Colors.green[600]
+                                                    : Colors.grey[400],
+                                                foregroundColor: Colors.white,
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 10),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                elevation: 2,
+                                              ),
+                                              icon: Icon(
+                                                ApiService.canUploadNow(
+                                                        student['last_photo_update']
+                                                                ?.toString() ??
+                                                            student['date_time']
+                                                                ?.toString() ??
+                                                            '')
+                                                    ? Icons.camera_alt
+                                                    : Icons.lock,
+                                                size: 18,
+                                              ),
+                                              label: Builder(
+                                                builder: (context) {
+                                                  final canUpload = ApiService
+                                                      .canUploadNow(student[
+                                                                  'last_photo_update']
+                                                              ?.toString() ??
+                                                          student['date_time']
+                                                              ?.toString() ??
+                                                          '');
+                                                  if (canUpload) {
+                                                    return Text(
+                                                      "फोटो अपलोड करें",
+                                                      style: TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    );
+                                                  } else {
+                                                    final nextDate = ApiService
+                                                        .getNextUploadDate(student[
+                                                                    'last_photo_update']
+                                                                ?.toString() ??
+                                                            student['date_time']
+                                                                ?.toString() ??
+                                                            '');
+                                                    final remainingDays = ApiService
+                                                        .getRemainingDaysForUpload(student[
+                                                                    'last_photo_update']
+                                                                ?.toString() ??
+                                                            student['date_time']
+                                                                ?.toString() ??
+                                                            '');
+
+                                                    if (nextDate.isNotEmpty &&
+                                                        remainingDays > 0) {
+                                                      return Text(
+                                                        "लॉक ($remainingDays दिन बाकी)",
+                                                        style: TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      );
+                                                    } else {
+                                                      return Text(
+                                                        "फोटो अपलोड लॉक",
+                                                        style: TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                          // Last upload info
+                                          if (student['date_time']
+                                                  ?.toString()
+                                                  .isNotEmpty ==
+                                              true)
+                                            Padding(
+                                              padding: EdgeInsets.only(top: 4),
+                                              child: Text(
+                                                'पिछला अपलोड: ${_formatDate(student['date_time']?.toString() ?? '')}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600],
+                                                  fontStyle: FontStyle.italic,
+                                                ),
+                                              ),
+                                            ),
+                                          // Days remaining info
+                                          if (!ApiService.canUploadNow(
+                                              student['last_photo_update']
+                                                      ?.toString() ??
+                                                  student['date_time']
+                                                      ?.toString() ??
+                                                  ''))
+                                            Builder(
+                                              builder: (context) {
+                                                final remainingDays = ApiService
+                                                    .getRemainingDaysForUpload(
+                                                        student['last_photo_update']
+                                                                ?.toString() ??
+                                                            student['date_time']
+                                                                ?.toString() ??
+                                                            '');
+                                                if (remainingDays > 0) {
+                                                  return Padding(
+                                                    padding:
+                                                        EdgeInsets.only(top: 3),
+                                                    child: Text(
+                                                      '$remainingDays दिन बाकी',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.blue[700],
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                                return SizedBox.shrink();
+                                              },
+                                            ),
                                           if (needsPhotoUpdate)
                                             Text(
                                               isPhotoLocked
                                                   ? 'फोटो अपडेट लॉक है (${7 - daysSinceLastUpdate} दिन बाकी)'
                                                   : 'फोटो अपडेट आवश्यक ($daysSinceLastUpdate दिन)',
                                               style: TextStyle(
-                                                color: isPhotoLocked ? Colors.orange : Colors.red,
+                                                color: isPhotoLocked
+                                                    ? Colors.orange
+                                                    : Colors.red,
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
@@ -674,17 +1063,115 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
+                                          // Upload status indicator
+                                          if (ApiService.canUploadNow(
+                                              student['date_time']
+                                                      ?.toString() ??
+                                                  ''))
+                                            Container(
+                                              padding: EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green[600],
+                                                shape: BoxShape.circle,
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.green
+                                                        .withOpacity(0.3),
+                                                    blurRadius: 4,
+                                                    offset: Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Icon(
+                                                Icons.camera_alt,
+                                                size: 18,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          else
+                                            Builder(
+                                              builder: (context) {
+                                                final remainingDays = ApiService
+                                                    .getRemainingDaysForUpload(
+                                                        student['last_photo_update']
+                                                                ?.toString() ??
+                                                            student['date_time']
+                                                                ?.toString() ??
+                                                            '');
+                                                if (remainingDays > 0) {
+                                                  return Container(
+                                                    padding: EdgeInsets.all(8),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.blue[600],
+                                                      shape: BoxShape.circle,
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Colors.blue
+                                                              .withOpacity(0.3),
+                                                          blurRadius: 4,
+                                                          offset: Offset(0, 2),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: Text(
+                                                      '$remainingDays',
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                                return SizedBox.shrink();
+                                              },
+                                            ),
+                                          SizedBox(width: 8),
+                                          // Verification status
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  student['verified'] == 'true'
+                                                      ? Colors.green[100]
+                                                      : Colors.red[100],
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              student['verified'] == 'true'
+                                                  ? 'सत्यापित'
+                                                  : 'असत्यापित',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: student['verified'] ==
+                                                        'true'
+                                                    ? Colors.green[800]
+                                                    : Colors.red[800],
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(width: 8),
                                           if (needsPhotoUpdate)
                                             IconButton(
                                               icon: Icon(
-                                                isPhotoLocked ? Icons.lock : Icons.camera_alt,
-                                                color: isPhotoLocked ? Colors.orange : Colors.red,
+                                                isPhotoLocked
+                                                    ? Icons.lock
+                                                    : Icons.camera_alt,
+                                                color: isPhotoLocked
+                                                    ? Colors.orange
+                                                    : Colors.red,
                                               ),
-                                              onPressed: isPhotoLocked 
-                                                  ? null 
-                                                  : () => _showPhotoUpdateDialog(student),
-                                              tooltip: isPhotoLocked 
-                                                  ? 'फोटो अपडेट लॉक है' 
+                                              onPressed: isPhotoLocked
+                                                  ? null
+                                                  : () =>
+                                                      _showPhotoUpdateDialog(
+                                                          student),
+                                              tooltip: isPhotoLocked
+                                                  ? 'फोटो अपडेट लॉक है'
                                                   : 'फोटो अपडेट करें',
                                             ),
                                           Icon(
@@ -713,24 +1200,35 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            _buildDetailRow('अभिभावक का नाम',
-                                                student['parent_name']),
-                                            _buildDetailRow('फोन नंबर',
+                                            _buildDetailRow('Employee ID',
+                                                student['employee_id']),
+                                            _buildDetailRow('मोबाइल नंबर',
                                                 student['phone_number']),
-                                            _buildDetailRow(
-                                                'ईमेल', student['email']),
-                                            _buildDetailRow(
-                                                'पता', student['address']),
-                                            _buildDetailRow('जन्म तिथि',
-                                                student['date_of_birth']),
-                                            _buildDetailRow(
-                                                'लिंग', student['gender']),
+                                            _buildDetailRow('स्कूल का नाम',
+                                                student['school_name']),
+                                            _buildDetailRow('UDISE कोड',
+                                                student['udise_code']),
+                                            _buildDetailRow('पेड़ का नाम',
+                                                student['name_of_tree']),
                                             _buildDetailRow('पंजीकरण तिथि',
                                                 student['date_time']),
                                             _buildDetailRow(
-                                                'सेक्शन', student['section']),
-                                            _buildDetailRow('रोल नंबर',
-                                                student['roll_number']),
+                                                'वेरिफिकेशन स्टेटस',
+                                                student['verified'] == 'true'
+                                                    ? 'सत्यापित'
+                                                    : 'असत्यापित'),
+                                            if (student['plant_image']
+                                                    ?.toString()
+                                                    .isNotEmpty ==
+                                                true)
+                                              _buildPhotoRow('पौधे की फोटो',
+                                                  student['plant_image']),
+                                            if (student['certificate']
+                                                    ?.toString()
+                                                    .isNotEmpty ==
+                                                true)
+                                              _buildPhotoRow('सर्टिफिकेट',
+                                                  student['certificate']),
                                             if (needsPhotoUpdate) ...[
                                               const SizedBox(height: 12),
                                               Container(
@@ -757,18 +1255,24 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
                                                             ? 'फोटो अपडेट लॉक है - ${7 - daysSinceLastUpdate} दिन बाकी'
                                                             : 'फोटो अपडेट आवश्यक - अंतिम अपडेट के $daysSinceLastUpdate दिन बाद',
                                                         style: TextStyle(
-                                                          color: isPhotoLocked ? Colors.orange : Colors.red,
+                                                          color: isPhotoLocked
+                                                              ? Colors.orange
+                                                              : Colors.red,
                                                           fontWeight:
                                                               FontWeight.w500,
                                                         ),
                                                       ),
                                                     ),
                                                     TextButton(
-                                                      onPressed: isPhotoLocked 
-                                                          ? null 
-                                                          : () => _showPhotoUpdateDialog(student),
+                                                      onPressed: isPhotoLocked
+                                                          ? null
+                                                          : () =>
+                                                              _showPhotoUpdateDialog(
+                                                                  student),
                                                       child: Text(
-                                                        isPhotoLocked ? 'लॉक है' : 'अपडेट करें',
+                                                        isPhotoLocked
+                                                            ? 'लॉक है'
+                                                            : 'अपडेट करें',
                                                       ),
                                                     ),
                                                   ],
@@ -814,6 +1318,308 @@ class _StudentsDataScreenState extends State<StudentsDataScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPhotoRow(String label, dynamic imageUrl) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                const Text(
+                  'उपलब्ध',
+                  style: TextStyle(fontWeight: FontWeight.w400),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () => _viewPhoto(imageUrl?.toString() ?? ''),
+                  icon: const Icon(Icons.visibility, size: 16),
+                  label: const Text('देखें'),
+                  style: ElevatedButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _viewPhoto(String imageUrl) {
+    if (imageUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('फोटो उपलब्ध नहीं है'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Add base URL if relative path
+    String fullImageUrl = imageUrl;
+    if (!imageUrl.startsWith('http')) {
+      fullImageUrl = '${ApiService.baseUrl}/$imageUrl';
+    }
+
+    // Determine title based on image type
+    String title = 'फोटो देखें';
+    if (imageUrl.contains('plant')) {
+      title = '🌱 पौधे की फोटो';
+    } else if (imageUrl.contains('certificate')) {
+      title = '📜 सर्टिफिकेट';
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(10),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.95,
+            height: MediaQuery.of(context).size.height * 0.85,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Header with title and close button
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  decoration: BoxDecoration(
+                    color: Colors.green[600],
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(15),
+                      topRight: Radius.circular(15),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        imageUrl.contains('plant')
+                            ? Icons.local_florist
+                            : Icons.description,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        splashRadius: 20,
+                      ),
+                    ],
+                  ),
+                ),
+                // Image container
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(15),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: InteractiveViewer(
+                        panEnabled: true,
+                        boundaryMargin: const EdgeInsets.all(20),
+                        minScale: 0.5,
+                        maxScale: 4.0,
+                        child: Image.network(
+                          fullImageUrl,
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                          height: double.infinity,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes !=
+                                            null
+                                        ? loadingProgress
+                                                .cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                        : null,
+                                    strokeWidth: 3,
+                                    color: Colors.green[600],
+                                  ),
+                                  const SizedBox(height: 15),
+                                  Text(
+                                    'फोटो लोड हो रही है...',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  if (loadingProgress.expectedTotalBytes !=
+                                      null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        '${((loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!) * 100).toInt()}%',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: double.infinity,
+                              height: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.grey[300]!),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    size: 60,
+                                    color: Colors.red[400],
+                                  ),
+                                  const SizedBox(height: 15),
+                                  Text(
+                                    'फोटो लोड नहीं हो सकी',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'नेटवर्क कनेक्शन या फाइल की जांच करें',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  ElevatedButton.icon(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('बंद करें'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green[600],
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Bottom action bar
+                Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(15),
+                      bottomRight: Radius.circular(15),
+                    ),
+                    border: Border(
+                      top: BorderSide(color: Colors.grey[200]!),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // Zoom instruction
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(Icons.touch_app,
+                                color: Colors.grey[600], size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              'ज़ूम करने के लिए पिंच करें',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Full screen button
+                      TextButton.icon(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  const Text('फुल स्क्रीन के लिए ज़ूम करें'),
+                              backgroundColor: Colors.green[600],
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.fullscreen, size: 18),
+                        label: const Text('फुल स्क्रीन'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.green[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

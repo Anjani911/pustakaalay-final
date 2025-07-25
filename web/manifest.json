@@ -1,11 +1,11 @@
 {
-    "name": "harihar_pathshala_flutter",
-    "short_name": "harihar_pathshala_flutter",
+    "name": "हरिहर पाठशाला",
+    "short_name": "हरिहर पाठशाला",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#4CAF50",
+    "theme_color": "#4CAF50",
+    "description": "हरिहर पाठशाला - रायपुर जिला शिक्षा पोर्टल",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
